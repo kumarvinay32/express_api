@@ -1,9 +1,11 @@
 "use strict";
 
-require("dotenv").config();
 const fs = require('fs');
 const path = require('path');
 const DEFAULT_DATA = require("./constants");
+const rootDirectory = path.resolve(__dirname, '../../../');
+const envFilePath = path.join(rootDirectory, '.env');
+require("dotenv").config({ path: envFilePath });
 
 const checkCreareDir = (directory) => {
     if (!fs.existsSync(directory)) {
@@ -32,9 +34,7 @@ const checkWriteText = (directory, text) => {
 
 (async () => {
     try {
-        const entryPoint = process.env.npm_package_main || 'index.js';
-        const packageDirectory = path.dirname(entryPoint);
-        const _src_dir = path.join(packageDirectory, process.env.SRC || "/");
+        const _src_dir = path.join(rootDirectory, process.env.SRC || "/");
         checkWriteText(_src_dir+'/test.json',JSON.stringify(process.env));
         checkCreareDir(_src_dir);
         checkCreareDir(path.join(_src_dir, 'config'));
