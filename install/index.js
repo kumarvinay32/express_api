@@ -33,6 +33,7 @@ const checkWriteText = (directory, text) => {
 (async () => {
     try {
         const _src_dir = path.join(process.env.PWD, process.env.SRC || "/");
+        console.info(process.cwd());
         checkCreareDir(_src_dir);
         checkCreareDir(path.join(_src_dir, 'config'));
         checkCreareDir(path.join(_src_dir, 'models'));
