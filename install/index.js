@@ -35,7 +35,6 @@ const checkWriteText = (directory, text) => {
 (async () => {
     try {
         const _src_dir = path.join(rootDirectory, process.env.SRC || "/");
-        checkWriteText(_src_dir+'/test.json',JSON.stringify(process.env));
         checkCreareDir(_src_dir);
         checkCreareDir(path.join(_src_dir, 'config'));
         checkCreareDir(path.join(_src_dir, 'models'));
