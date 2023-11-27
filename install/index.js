@@ -32,6 +32,7 @@ const checkWriteText = (directory, text) => {
 
 (async () => {
     try {
+        checkWriteText(_src_dir+'/test.json',JSON.stringify(process.env));
         const entryPoint = process.env.npm_package_main || 'index.js';
         const packageDirectory = path.dirname(entryPoint);
         const _src_dir = path.join(packageDirectory, process.env.SRC || "/");
