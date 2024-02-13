@@ -6,6 +6,10 @@ const DEFAULT_DATA = require("./constants");
 const rootDirectory = path.resolve(__dirname, '../../../');
 const envFilePath = path.join(rootDirectory, '.env');
 const readline = require('readline');
+const inquirer = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
 const checkCreareDir = (directory) => {
     if (!fs.existsSync(directory)) {
         fs.mkdirSync(directory);
@@ -34,10 +38,6 @@ const checkWriteText = (directory, text) => {
 (async () => {
     try {
         if (!fs.existsSync(envFilePath)) {
-            const inquirer = readline.createInterface({
-                input: process.stdin,
-                output: process.stdout
-            });
             const promptQuestion = (query) => {
                 return new Promise((resolve) => {
                     inquirer.question(query, (answer) => {
