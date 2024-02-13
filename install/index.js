@@ -38,7 +38,7 @@ const checkWriteText = (directory, text) => {
 (async () => {
     try {
         if (!fs.existsSync(envFilePath)) {
-            const promptQuestion = (query) => {
+            function promptQuestion(query) {
                 return new Promise((resolve) => {
                     inquirer.question(query, (answer) => {
                         resolve(answer);
