@@ -17,13 +17,6 @@ const promptQuestion = (query) => {
         });
     });
 }
-if (!fs.existsSync(envFilePath)) {
-    let src = promptQuestion(`What would be your project source folder Default("/") : `);
-    inquirer.close();
-    fs.writeFileSync(envFilePath, `NODE_ENV=dev\nSRC=${src || ""}\n`);
-}
-require("dotenv").config({ path: envFilePath });
-
 const checkCreareDir = (directory) => {
     if (!fs.existsSync(directory)) {
         fs.mkdirSync(directory);
@@ -51,6 +44,12 @@ const checkWriteText = (directory, text) => {
 
 (async () => {
     try {
+        if (!fs.existsSync(envFilePath)) {
+            let src = await promptQuestion(`What would be your project source folder Default("/") : `);
+            inquirer.close();
+            fs.writeFileSync(envFilePath, `NODE_ENV=dev\nSRC=${src || ""}\n`);
+        }
+        require("dotenv").config({ path: envFilePath });
         const _src_dir = path.join(rootDirectory, process.env.SRC || "/");
         checkCreareDir(_src_dir);
         checkCreareDir(path.join(_src_dir, 'config'));
