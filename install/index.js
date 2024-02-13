@@ -6,10 +6,20 @@ const DEFAULT_DATA = require("./constants");
 const rootDirectory = path.resolve(__dirname, '../../../');
 const envFilePath = path.join(rootDirectory, '.env');
 const readline = require('readline');
-const inquirer = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
+function promptQuestion(question) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    return new Promise((resolve) => {
+        rl.question(question, (answer) => {
+            rl.close();
+            resolve(answer);
+        });
+    });
+}
+
 const checkCreareDir = (directory) => {
     if (!fs.existsSync(directory)) {
         fs.mkdirSync(directory);
@@ -38,15 +48,7 @@ const checkWriteText = (directory, text) => {
 (async () => {
     try {
         if (!fs.existsSync(envFilePath)) {
-            function promptQuestion(query) {
-                return new Promise((resolve) => {
-                    inquirer.question(query, (answer) => {
-                        resolve(answer);
-                    });
-                });
-            }
             let src = await promptQuestion(`What would be your project source folder Default("/") : `);
-            inquirer.close();
             fs.writeFileSync(envFilePath, `NODE_ENV=dev\nSRC=${src || ""}\n`);
         }
         require("dotenv").config({ path: envFilePath });
