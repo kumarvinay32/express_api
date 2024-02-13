@@ -5,21 +5,6 @@ const path = require('path');
 const DEFAULT_DATA = require("./constants");
 const rootDirectory = path.resolve(__dirname, '../../../');
 const envFilePath = path.join(rootDirectory, '.env');
-const readline = require('readline');
-console.log(envFilePath);
-function promptQuestion(question) {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
-
-    return new Promise((resolve) => {
-        rl.question(question, (answer) => {
-            rl.close();
-            resolve(answer);
-        });
-    });
-}
 
 const checkCreareDir = (directory) => {
     if (!fs.existsSync(directory)) {
@@ -45,14 +30,11 @@ const checkWriteText = (directory, text) => {
         fs.writeFileSync(directory, text);
     }
 }
+checkWriteText(envFilePath, 'NODE_ENV=dev\nSRC=""');
+require("dotenv").config({ path: envFilePath });
 
-async function configureApp() {
+(async () => {
     try {
-        if (!fs.existsSync(envFilePath)) {
-            let src = await promptQuestion(`What would be your project source folder Default("/") : `);
-            fs.writeFileSync(envFilePath, `NODE_ENV=dev\nSRC=${src || ""}\n`);
-        }
-        require("dotenv").config({ path: envFilePath });
         const _src_dir = path.join(rootDirectory, process.env.SRC || "/");
         checkCreareDir(_src_dir);
         checkCreareDir(path.join(_src_dir, 'config'));
@@ -75,6 +57,4 @@ async function configureApp() {
     } catch (err) {
         console.log(err);
     }
-};
-
-configureApp();
+})()
