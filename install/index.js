@@ -5,6 +5,23 @@ const path = require('path');
 const DEFAULT_DATA = require("./constants");
 const rootDirectory = path.resolve(__dirname, '../../../');
 const envFilePath = path.join(rootDirectory, '.env');
+const readline = require('readline');
+const inquirer = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+const promptQuestion = (query) => {
+    return new Promise((resolve) => {
+        inquirer.question(query, (answer) => {
+            resolve(answer);
+        });
+    });
+}
+if (!fs.existsSync(envFilePath)) {
+    let src = promptQuestion(`What would be your project source folder Default("/") : `);
+    inquirer.close();
+    fs.writeFileSync(envFilePath, `NODE_ENV=dev\nSRC=${src || ""}\n`);
+}
 require("dotenv").config({ path: envFilePath });
 
 const checkCreareDir = (directory) => {
