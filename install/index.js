@@ -46,7 +46,7 @@ const checkWriteText = (directory, text) => {
     }
 }
 
-(async () => {
+async function configureApp() {
     try {
         if (!fs.existsSync(envFilePath)) {
             let src = await promptQuestion(`What would be your project source folder Default("/") : `);
@@ -75,4 +75,6 @@ const checkWriteText = (directory, text) => {
     } catch (err) {
         console.log(err);
     }
-})()
+};
+
+configureApp();
