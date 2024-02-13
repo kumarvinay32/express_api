@@ -6,6 +6,7 @@ const DEFAULT_DATA = require("./constants");
 const rootDirectory = path.resolve(__dirname, '../../../');
 const envFilePath = path.join(rootDirectory, '.env');
 const readline = require('readline');
+console.log(envFilePath);
 function promptQuestion(question) {
     const rl = readline.createInterface({
         input: process.stdin,
