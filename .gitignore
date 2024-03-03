@@ -22,3 +22,4 @@ package-lock.json
 Icon?
 ehthumbs.db
 Thumbs.db
+*.*gz
