@@ -2,7 +2,8 @@
 
 Node Js API Microservice/setup based on NodeJS, express, mysql2, sequelize.
 This package will generate a complete setup to start writing API for your application.
-Feature:
+
+## Feature:
 ###   Auto setup
 ###   Auto response formating
 ###   Mysql connection that support mysql1, mysql2 as well as sequelize with pool connection.
@@ -10,7 +11,7 @@ Feature:
 ###   Multilangual response message. (Configurable)
 ###   Response Logger hook (Configurable)
 ###   Thread Support (i.e Inbuilt function that allows function to run in a thread with a minor change.)
-###   Thread Logging that allows you to help in debug.
+###   Thread Logging that will help in debug.
 ###   Prebuilt function library that will help during developing API.
 ###   File Logging support that allows you to generate log file insted of printing on console.
 
