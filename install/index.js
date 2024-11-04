@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const DEFAULT_DATA = require("./constants");
-const rootDirectory = path.resolve(__dirname, '../../../../');
+const rootDirectory = path.dirname(path.dirname(path.dirname(path.dirname(path.resolve(__dirname)))));
 const envFilePath = path.join(rootDirectory, '.env');
 
 const checkCreareDir = (directory) => {
@@ -17,7 +17,7 @@ const checkCrearefile = (directory, file_name) => {
     let key = file_name;
     if (!file_name) {
         file_name = 'index'
-        key = directory.split("/").pop();
+        key = directory.split(path.sep).pop();
     }
     const _dir_path = path.join(directory, `${file_name}.js`);
     if (!fs.existsSync(_dir_path)) {
@@ -35,7 +35,7 @@ require("dotenv").config({ path: envFilePath });
 
 (async () => {
     try {
-        const _src_dir = path.join(rootDirectory, process.env.SRC || "src");
+        const _src_dir = path.join(rootDirectory, process.env.SRC == undefined ? "src" : process.env.SRC);
         checkCreareDir(_src_dir);
         checkCreareDir(path.join(_src_dir, 'config'));
         checkCreareDir(path.join(_src_dir, 'models'));
