@@ -7,6 +7,6 @@
 'use strict';
 
 /**
- * Expose initExpress Module.
+ * Expose `util`.
  */
-exports = module.exports = require('./lib');
+exports = module.exports = require("./lib/util");
