@@ -47,6 +47,7 @@ require("dotenv").config({ path: envFilePath });
         checkCreareDir(path.join(_src_dir, 'lang'));
         checkCreareDir(path.join(_src_dir, 'activities'));
         checkCrearefile(path.join(_src_dir, 'config'), 'appConfig');
+        checkCrearefile(path.join(_src_dir, 'config'), 'database');
         checkCrearefile(path.join(_src_dir, 'lang'), 'en');
         checkCrearefile(path.join(_src_dir, 'lang'), 'hi');
         checkCrearefile(path.join(_src_dir, 'routes'), '');
