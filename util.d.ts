@@ -1,270 +1,168 @@
-export declare class util {
-    constructor();
+declare class util {
     /**
-     * merge multiple object to one
-     * eg obj_merge({},{x:1},{y:2},{z:3},...);
-     * @param {obj} target
-     * @returns {object}
+     * Merge multiple objects into one.
+     * e.g. obj_merge({}, {x:1}, {y:2}, {z:3}, ...);
      */
-    obj_merge(...objects: [Object]): object;
+    static obj_merge(...objects: object[]): object;
 
     /**
-     * filter IPV4 Address from mixed IP string.
-     * @param {string} mixed string containg ipv4+ipv6 IPs
-     * @returns {string} string containing ipv4 Address.
+     * Filter IPv4 address from a mixed IP string (IPv4+IPv6).
      */
-    get_ipv4_addr(mixed: string): string;
+    static get_ipv4_addr(mixed: string): string;
 
     /**
      * Return word in plural form.
-     *
-     * @param {string} word Word in singular
-     * @return {string} Word in plural
      */
-    pluralize(word: string): string;
+    static pluralize(word: string): string;
 
     /**
      * Return word in singular form.
-     *
-     * @param {string} word Word in plural
-     * @return {string} Word in singular
      */
-    singularize(word: string): string;
+    static singularize(word: string): string;
 
     /**
-     * Returns the given camelCasedWord as an underscored_word.
-     *
-     * @param {string} camelCasedWord Camel-cased word to be "underscorized"
-     * @return {string} Underscore-syntaxed version of the $camelCasedWord
+     * Return the given camelCasedWord as an underscored_word.
      */
-    underscore(camelCasedWord: string): string;
+    static underscore(camelCasedWord: string): string;
 
     /**
-     * Returns the given underscored_word_group as a Human Readable Word Group.
-     * (Underscores are replaced by spaces and capitalized following words.)
-     *
-     * @param {string} lowerCaseAndUnderscoredWord String to be made more readable
-     * @return {string} Human-readable string
+     * Return the given underscored_word_group as a Human Readable Word Group.
      */
-    humanize(lowerCaseAndUnderscoredWord: string): string;
+    static humanize(lowerCaseAndUnderscoredWord: string): string;
 
     /**
-     * Returns the given lower_case_and_underscored_word as a CamelCased word.
-     *
-     * @param {string} lowerCaseAndUnderscoredWord Word to camelize
-     * @return {string} Camelized word. LikeThis.
+     * Return the given lower_case_and_underscored_word as a CamelCased word.
      */
-    camelize(lowerCaseAndUnderscoredWord: string): string;
+    static camelize(lowerCaseAndUnderscoredWord: string): string;
 
     /**
-     * Format string similar to printf();
-     * eg format('My name is ? ?.','Vinay', 'Kumar');// My name is Vinay Kumar.
-     * @param {string} message, replacemen values...
-     * @returns {string} formated String.
+     * Format string similar to printf().
+     * e.g. format('My name is ? ?.', 'Vinay', 'Kumar') → 'My name is Vinay Kumar.'
      */
-    format(): string;
+    static format(message: string, ...values: any[]): string;
 
     /**
-     * Gets an environment variable from available sources, and provides emulation
-     * for unsupported or inconsistent environment variables.
-     * Also exposes some additional custom environment information.
-     *
-     * @param {Request Object} req Node Express request object.
-     * @param {string} key Environment variable name.
-     * @return {string} Environment variable setting.
+     * Gets an environment variable from the current request.
+     * Added at runtime via req.util.env — available as util.env on the mounted instance.
      */
-    env(req: object, key: string): string;
+    static env(req: object, key: string): string;
 
     /**
-     * Creates an associative array using `keyPath` as the path to build its keys, and optionally
-     * `valuePath` as path to get the values. If `valuePath` is not specified, all values will be initialized
-     * You can optionally group the values by what is obtained when following the path specified in `groupPath`.
-     *
-     * @param {array|Object} data Data array from where to extract keys and values
-     * @param {string} keyPath keyPath A dot-separated string or array for formatting rules.
-     * @param {string} valuePath valuePath A dot-separated string or array for formatting rules.
-     * @param {string} groupPath groupPath A dot-separated string.
-     * @return {Object} Combined Object
+     * Creates an associative array using keyPath as the path to build its keys,
+     * and optionally valuePath as path to get the values.
      */
-    combine(data: object, keyPath: string, valuePath: string, groupPath: string): object;
+    static combine(data: object | any[], keyPath: string, valuePath: string, groupPath?: string): object;
 
     /**
-     * Sorts given array object by key sortBy.
-     *
-     * @param {object|array} array Object to sort
-     * @param {string} sortBy Sort by this key
-     * @param {string} order Sort order asc/desc (ascending or descending).
-     * @param {boolean} numeric_check Type of sorting to perform
-     * @return {array|null} Sorted array, or null if not an array.
+     * Sort an array of objects by a given key.
+     * @param order 'asc' | 'desc'
      */
-    sortByKey(array: object, sortBy: string, order: string, numeric_check: boolean): object;
+    static sortByKey(array: object | any[], sortBy: string, order?: string, numeric_check?: boolean): any[] | null;
 
     /**
-     * Convet a Array of Object containg id and parent_id as key in object into a Mapped Tree structure.
-     * @param {Array} data Array of object containing id and parent_id in each row.
-     * @param {Boolean} all (Optional) Flag to add All Node at top of tree.
-     * @returns {Object} Object of mapped data with there children.
+     * Convert a flat array of objects (with id and parent_id) into a mapped tree structure.
+     * @param all Prepend an "All" root node when true.
      */
-    mapTree(data: object, all: boolean): object;
+    static mapTree(data: any[], all?: boolean): object[];
 
     /**
-     * Convert plan text to it's md5 string
-     * @param {string} str plan text
-     * @returns {string} md5 of string.
+     * Convert plain text to its MD5 hex string.
      */
-    md5(str: string): string;
+    static md5(str: string): string;
 
     /**
-     * Convert plan text to it's SHA1 string
-     * @param {string} str plan text
-     * @returns {string} SHA1 of string.
+     * Convert plain text to its SHA1 hex string.
      */
-    SHA1(str: string): string;
+    static SHA1(str: string): string;
 
     /**
-     * Returns a random unique string.
-     * @returns {string} random unique string.
+     * Returns a random UUID v4 string.
      */
-    uuid(): string;
+    static uuid(): string;
 
     /**
-     * Generate random string of desired length and type.
-     * 
-     * @param {Number} PasswdLen lenth of password
-     * @param {Enum} Type type of character in password N|AN|AaN Default will include special chars (@_#!:+=)
-     * @returns {string} random string of desired length and char type.
+     * Generate a random string of desired length and character set.
+     * @param Type 'N' (numeric) | 'AN' (alphanumeric upper) | 'AaN' (alphanumeric) | '' (all + special chars)
      */
-    generate_password(PasswdLen: number, Type: string): string;
+    static generate_password(PasswdLen: number, Type?: string): string;
 
     /**
-     * Get a random number between a given range.
-     * @param {Number} min min range
-     * @param {Number} max max range
-     * @returns {Number} a random no.
+     * Return a random integer between min and max (inclusive).
      */
-    mt_rand(min: number, max: number): number;
+    static mt_rand(min: number, max: number): number;
 
     /**
-     * Returns a System Timezone.
-     *
-     * @return Timezone in (+-)HH:MM
+     * Return the system timezone offset as a string (+/-)HH:MM.
      */
-    systemTimeZone(): string;
+    static systemTimeZone(): string;
 
     /**
-     * Returns a UNIX Timestamp of Current time.
-     *
-     * @param boolean microsec with/without Microsecond. Default is false
-     * @return int UNIX Timestamp
+     * Return a UNIX timestamp of the current time.
+     * @param microsec Include microseconds when true.
      */
-    timestamp(IST: boolean, microsec: boolean): number;
+    static timestamp(IST?: boolean, microsec?: boolean): number;
 
     /**
-     * Returns a UNIX Timestamp of Current time.
-     *
-     * @return int UNIX Timestamp
+     * Return the current time as a microtime float (seconds.microseconds).
      */
-    microtime(IST: boolean): number;
+    static microtime(IST?: boolean): number;
 
     /**
-     * Returns a nicely formatted Current date string for given Datetime format.
-     *
-     * @param string date_format_str The format to use. If null, `Y-m-d H:i:s` is used
-     * @return string Formatted date string
+     * Return the current date/time formatted with the given format string.
+     * Defaults to 'Y-m-d H:i:s'.
      */
-    curdate(date_format_str: string): string;
+    static curdate(date_format_str?: string): string;
 
     /**
-     * Returns a nicely formatted date string for given Datetime string.
-     *
-     * @param int|string|DateTime timestamp, a valid string or DateTime object
-     * @param string|DateTimeZone $timezone Timezone string or DateTimeZone object
-     * @param string date_format_str The format to use. If null, `Y-m-d H:i:s` is used
-     * @return string|null Formatted date string
+     * Return a formatted date string for the given timestamp.
      */
-    date_format(timestamp: any, date_format_str: string): string;
+    static date_format(timestamp: any, date_format_str?: string): string;
 
     /**
-     * Returns a date Array for given Datetime string.
-     *
-     * @param int|string|DateTime timestamp, a valid string or DateTime object
-     * @return Array|null Mapped date array.
+     * Return a mapped date array for the given timestamp.
      */
-    date_obj_array(timestamp: any): object;
+    static date_obj_array(timestamp: any): object;
 
     /**
-     * Validate and returns a  DateTime object for given Datetime string.
-     *
-     * @param int|string|DateTime timestamp, a valid string or DateTime object
-     * @return DateTime object|null
+     * Validate and return a Date object for the given timestamp, or null if invalid.
      */
-    check_timestamp(timestamp: any): string | object;
+    static check_timestamp(timestamp: any): string | object;
 
     /**
-     * Returns Two digit string of date chunk.
-     *
-     * @param int|string d, Date Chunk
-     * @return string Two digit string
+     * Return a zero-padded two-digit string for a date chunk.
      */
-    _dd(d: number | string): string;
+    static _dd(d: number | string): string;
 
     /**
-     * Add month on given date
-     * 
-     * @param {string|number|time object} timestamp 
-     * @param {Number} no_of_month no of month to be added
-     * @param {*} format output format
-     * @returns future or past date in desired format after adding month.
+     * Add months to a date and return in the given format.
      */
-    add_month(timestamp: any, no_of_month: number, format: string): string;
+    static add_month(timestamp: any, no_of_month: number, format?: string): string;
 
     /**
-     * Add Date on given date
-     * 
-     * @param {string|number|time object} timestamp 
-     * @param {Number} no_of_month no of days to be added
-     * @param {*} format output format
-     * @returns future or past date in desired format after adding days.
+     * Add days to a date and return in the given format.
      */
-    add_date(timestamp: any, no_of_day: number, format: string): string;
+    static add_date(timestamp: any, no_of_day: number, format?: string): string;
 
     /**
-     * Add Hours on given date
-     * 
-     * @param {string|number|time object} timestamp 
-     * @param {Number} no_of_month no of days to be added
-     * @param {*} format output format
-     * @returns future or past date in desired format after adding hours.
+     * Add hours to a date and return in the given format.
      */
-    add_hours(timestamp: any, no_of_hours: number, format: string): string;
+    static add_hours(timestamp: any, no_of_hours: number, format?: string): string;
 
     /**
-     * Add Minuts on given date
-     * 
-     * @param {string|number|time object} timestamp 
-     * @param {Number} no_of_month no of days to be added
-     * @param {*} format output format
-     * @returns future or past date in desired format after adding minuts.
+     * Add minutes to a date and return in the given format.
      */
-    add_minutes(timestamp: any, no_of_minutes: number, format: string): number;
+    static add_minutes(timestamp: any, no_of_minutes: number, format?: string): number;
 
     /**
-     * Get diffrence between two days in desired unit.
-     * @param {string|number|time object} date1 
-     * @param {string|number|time object} date2 
-     * @param {Char} diff_in time Unit Y|M|D|H|I|S default is microsecond
-     * @returns {Number} diffrence in desired unit
+     * Get the difference between two dates in the given unit.
+     * @param diff_in 'Y' | 'M' | 'D' | 'H' | 'I' | 'S' — defaults to microseconds
      */
-    date_diff(from_date: Date | string, to_date: Date | string, diff_in: string): number;
+    static date_diff(from_date: Date | string, to_date: Date | string, diff_in?: string): number;
 
     /**
-     * Get diffrence between two days in readable format.
-     * @param {string|number|time object} date1 
-     * @param {string|number|time object} date2 
-     * @returns {string} readable diffrence of dates.
+     * Get the difference between two dates as a human-readable string.
      */
-    date_diff_tostring(from_date: Date | string, to_date: Date | string): string;
-
+    static date_diff_tostring(from_date: Date | string, to_date: Date | string): string;
 }
 
 export = util;

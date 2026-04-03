@@ -1,58 +1,55 @@
 # Express API Microservice
 
-A comprehensive Node.js API microservice framework built on Express, MySQL2, and Sequelize. This package provides a complete, production-ready setup to rapidly develop robust APIs for your applications.
+A comprehensive Node.js API microservice framework built on Express, MySQL2, and Sequelize. This package provides a complete, production-ready setup to rapidly develop robust APIs.
 
 ## ✨ Features
 
-- **🚀 Automated Setup** - Get started instantly with zero-configuration defaults
+- **🚀 Automated Setup** - Installer scaffolds a complete project structure
 - **📊 Auto Response Formatting** - Consistent API response structure out of the box
-- **🗄️ Flexible Database Support** - Compatible with MySQL1, MySQL2, and Sequelize with connection pooling
+- **🗄️ Flexible Database Support** - Powered by MySQL2 and Sequelize with connection pooling. Supports MySQL1-style callback query syntax (`connection.query(sql, callback)`) without any code changes
 - **🛠️ Configurable Error Messages** - Customize database error messages to match your needs
 - **🌍 Multilingual Support** - Built-in internationalization for response messages
 - **📝 Response Logger Hook** - Configurable logging for all API responses
-- **⚡ Thread Support** - Execute functions asynchronously with minimal code changes
+- **⚡ Thread Support** - Execute functions asynchronously with minimal code changes. Accepts an optional `timeout` (ms) — if the child process does not respond in time it is killed and the callback receives an error
 - **🔍 Thread Logging** - Enhanced debugging capabilities for threaded operations
 - **📚 Helper Function Library** - Pre-built utilities to accelerate API development
 - **📄 File Logging** - Generate log files instead of console output
 - **🔐 Response Header Management** - Built-in CORS and header configuration (no additional packages needed)
+- **🤖 Claude AI Agent Ready** - Ships with `CLAUDE.md` — a complete agent guide so Claude Code knows your project's exact API patterns, conventions, and architecture without any prompting
 
 ## 📦 Installation
 
-Configure your application using environment variables to specify the source directory and project type.
+The installer runs automatically after `npm install`. Configure it by passing `SRC` via environment variables or a `.env` file. If not set, defaults to `src`.
 
-### Environment Variables
+| Variable | Description                  | Default | Options       |
+|----------|------------------------------|---------|---------------|
+| `SRC`    | Application source directory | `src`   | Any valid path |
 
-| Variable  | Description                              | Default | Options        |
-|-----------|------------------------------------------|---------|----------------|
-| `SRC`     | Application source directory             | `src`   | Any valid path |
-
-### Method 1: Using .env File (Recommended)
-
-1. Create a `.env` file in your project root:
-```env
-NODE_ENV=dev
-SRC=src
-```
-
-2. Install the package:
-```sh
-npm install @krvinay/express_api
-```
-
-### Method 2: Linux / macOS
+### Method 1: Via env — Linux / macOS
 
 ```sh
 SRC=src npm install @krvinay/express_api
 ```
 
-### Method 3: Windows (CMD or PowerShell)
+### Method 2: Via env — Windows (CMD or PowerShell)
 
 ```sh
-# Install cross-env (if not already installed)
+# Install cross-env if not already installed
 npm install --save-dev cross-env
 
 npx cross-env SRC=src npm install @krvinay/express_api
 ```
+
+### Method 3: Via `.env` file
+
+Create a `.env` file in your project root before installing:
+
+```env
+NODE_ENV=dev
+SRC=src
+```
+
+Then run `npm install @krvinay/express_api`.
 
 ## 🚀 Getting Started
 
@@ -88,15 +85,16 @@ If you're installing this package in an existing project, you'll need to:
 
 ## 📁 Project Structure
 
-After installation, the following structure will be generated:
+The installer generates the following structure:
 
 ```
 project-root/
-├── src/                          # Source directory (configurable)
+├── src/                          # Source directory (configurable via SRC)
 │   ├── activities/               # Thread-related files and functions
 │   │   └── index.js              # Sample thread function
 │   ├── config/                   # Configuration files
-│   │   └── appConfig.js          # Main configuration file
+│   │   ├── appConfig.js          # Main configuration file
+│   │   └── database.js           # Database connection config
 │   ├── helpers/                  # Utility function library
 │   │   └── index.js              # Helper functions
 │   ├── lang/                     # Internationalization files
@@ -134,22 +132,16 @@ const server = require('express')();
 const { json, urlencoded } = require('express');
 const default_port = 8080;
 
-// Middleware configuration
 server.use(json({ limit: '50mb', extended: true }));
 server.use(urlencoded({ limit: '50mb', extended: true }));
-
-// Initialize Express API package
 server.use(require("@krvinay/express_api"));
 
-// Start server
 server.listen(process.env.PORT || default_port, () => {
     console.log(`Server running on port ${process.env.PORT || default_port}`);
 });
 ```
 
 ## 🔧 Environment Configuration
-
-Create a `.env` file in your project root with the following variables:
 
 ```env
 # Node Application environment
@@ -177,6 +169,32 @@ Once installed and configured, you can start building your API by:
 3. **Writing Helpers** - Create utility functions in `src/helpers/`
 4. **Configuring Languages** - Add translations in `src/lang/`
 5. **Implementing Threads** - Add background tasks in `src/activities/`
+
+## 🤖 Claude AI Agent
+
+Every project scaffolded by this package includes `CLAUDE.md` at its root — a complete agent guide that instructs Claude exactly how to write APIs using this framework's patterns and conventions.
+
+### What it covers
+
+- Full `req` object API reference (`req.data`, `req.db`, `req.getConnection`, `req.util`, `req.getEnv`, `req.writeLog`, `req.formatMessage`, …)
+- Standard response envelope format and all shape rules
+- Route writing conventions in JS and TS
+- Raw SQL via `MySqlUtil` and Sequelize ORM patterns
+- `appConfig` and `database` config file templates
+- i18n message key patterns with auto-translation
+- Activity/thread pattern with `(req, payload)` signature
+- Logging, security headers, common patterns, and anti-patterns
+
+### Activate with Claude Code
+
+Copy `CLAUDE.md` into `.claude/` to have Claude Code load it automatically as project context every time you open the project:
+
+```sh
+mkdir -p .claude
+cp CLAUDE.md .claude/CLAUDE.md
+```
+
+Claude will then follow all conventions automatically — no prompting needed.
 
 ## 👤 Author
 
