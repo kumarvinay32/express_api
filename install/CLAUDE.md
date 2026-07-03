@@ -17,7 +17,7 @@ project-root/
 │   ├── helpers/
 │   │   └── index.js            # Helper class extending req.util
 │   ├── lang/
-│   │   ├── en.js               # English i18n keys (always .js)
+│   │   ├── en.js               # English i18n keys
 │   │   └── hi.js               # Hindi i18n keys
 │   ├── logs/                   # Auto-created log files land here
 │   ├── models/
@@ -32,7 +32,6 @@ project-root/
 └── .env                        # NODE_ENV, PORT, SRC, DB_*
 ```
 
-File extensions inside `src/` are `.js`.
 
 ---
 
@@ -154,14 +153,14 @@ const conn = req.getConnection();                  // default DB
 const conn = req.getConnection('analytics');       // named DB
 
 // SELECT
-const rows = await conn.querySync('SELECT * FROM users WHERE id = ?', userId);
+const rows = await conn.querySync('SELECT * FROM users WHERE id = ?', [userId]);
 
 // INSERT — returns OkPacket (insertId, affectedRows, etc.)
-const result = await conn.querySync('INSERT INTO users SET ?', { name, email });
+const result = await conn.querySync('INSERT INTO users SET ?', [{ name, email }]);
 console.log(result.insertId);
 
 // UPDATE / DELETE
-await conn.querySync('UPDATE users SET active = ? WHERE id = ?', 1, userId);
+await conn.querySync('UPDATE users SET active = ? WHERE id = ?', [1, userId]);
 
 // Parameterised with array
 await conn.querySync('SELECT * FROM orders WHERE user_id = ? AND status = ?', [userId, 'pending']);
@@ -169,8 +168,8 @@ await conn.querySync('SELECT * FROM orders WHERE user_id = ? AND status = ?', [u
 // Transactions
 const tx = await conn.beginTransactionSync();
 try {
-    await tx.querySync('INSERT INTO orders SET ?', orderData);
-    await tx.querySync('UPDATE inventory SET qty = qty - 1 WHERE id = ?', itemId);
+    await tx.querySync('INSERT INTO orders SET ?', [orderData]);
+    await tx.querySync('UPDATE inventory SET qty = qty - 1 WHERE id = ?', [itemId]);
     await tx.commitSync();
 } catch (err) {
     await tx.rollbackSync();
@@ -386,7 +385,7 @@ module.exports = {
     async main(req, payload) {
         const { userId } = payload;
         const conn = req.getConnection();
-        const rows = await conn.querySync('SELECT * FROM jobs WHERE user_id = ?', userId);
+        const rows = await conn.querySync('SELECT * FROM jobs WHERE user_id = ?', [userId]);
         return { jobs: rows };
     },
 
@@ -502,7 +501,7 @@ router.get('/items', async (req, res, next) => {
         const offset = (page - 1) * limit;
         const conn = req.getConnection();
         const [total] = await conn.querySync('SELECT COUNT(*) as cnt FROM items');
-        const items   = await conn.querySync('SELECT * FROM items LIMIT ? OFFSET ?', limit, offset);
+        const items   = await conn.querySync('SELECT * FROM items LIMIT ? OFFSET ?', [limit, offset]);
         res.json({ data: { items, total: total.cnt, page, limit } });
     } catch (err) {
         next(err);
@@ -517,8 +516,8 @@ router.post('/transfer', async (req, res, next) => {
     const conn = req.getConnection();
     const tx = await conn.beginTransactionSync();
     try {
-        await tx.querySync('UPDATE wallets SET balance = balance - ? WHERE id = ?', req.data.amount, req.data.from);
-        await tx.querySync('UPDATE wallets SET balance = balance + ? WHERE id = ?', req.data.amount, req.data.to);
+        await tx.querySync('UPDATE wallets SET balance = balance - ? WHERE id = ?', [req.data.amount, req.data.from]);
+        await tx.querySync('UPDATE wallets SET balance = balance + ? WHERE id = ?', [req.data.amount, req.data.to]);
         await tx.commitSync();
         res.json({ message: 'TRANSFER_SUCCESS' });
     } catch (err) {

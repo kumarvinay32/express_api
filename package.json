@@ -1,6 +1,6 @@
 {
   "name": "@krvinay/express_api",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Node API Application server",
   "author": "Vinay Kumar",
   "license": "MIT",
@@ -8,24 +8,24 @@
   "types": "index.d.ts",
   "exports": {
     ".": {
+      "types": "./index.d.ts",
       "import": "./index.js",
-      "require": "./index.js",
-      "types": "./index.d.ts"
+      "require": "./index.js"
     },
     "./util": {
+      "types": "./util.d.ts",
       "import": "./util.js",
-      "require": "./util.js",
-      "types": "./util.d.ts"
+      "require": "./util.js"
     },
     "./mysql": {
+      "types": "./mysql.d.ts",
       "import": "./mysql.js",
-      "require": "./mysql.js",
-      "types": "./mysql.d.ts"
+      "require": "./mysql.js"
     },
     "./threads": {
+      "types": "./threads.d.ts",
       "import": "./threads.js",
-      "require": "./threads.js",
-      "types": "./threads.d.ts"
+      "require": "./threads.js"
     }
   },
   "repository": {

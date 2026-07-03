@@ -1,13 +1,481 @@
+"use strict";
+
+/**
+ * JavaScript project templates.
+ * Used by the installer/CLI (install/scaffold.js) when scaffolding a
+ * JavaScript project. TypeScript templates live in constants-ts.js.
+ */
+
+const appConfig = `'use strict';
+
+/**
+ * Request Initializer
+ * -------------------------------
+ * This module configures request-level settings and utilities.
+ * It enriches the \`req\` object with configuration, security,
+ * localization, database bindings, and centralized logging.
+ */
+module.exports = (req) => {
+
+    /**
+     * ==========================================================
+     * Request Configuration
+     * ==========================================================
+     * Centralized configuration controlling application behavior
+     * for the lifetime of a single request.
+     */
+    req.config = {
+
+        /**
+         * ------------------------------------------------------
+         * Utility & Database Bindings
+         * ------------------------------------------------------
+         */
+
+        // Attach common utility helpers to \`req.util\`
+        bindUtil: true,
+
+        // Attach database helpers: req.getConnection(), req.dbConnection()
+        bindDatabase: true,
+
+
+        /**
+         * ------------------------------------------------------
+         * Console Logging Controls
+         * ------------------------------------------------------
+         */
+
+        // Disable console.log output globally when set to true
+        disableConsoleLog: false,
+
+        // Disable console.info output globally when set to true
+        disableConsoleInfo: false,
+
+
+        /**
+         * ------------------------------------------------------
+         * API Response Formatting
+         * ------------------------------------------------------
+         */
+
+        // Automatically wrap responses in a standard API format
+        // {
+        //   error: false,
+        //   code: 200,
+        //   message: "Response",
+        //   timestamp: <unix_timestamp>,
+        //   data: {}
+        // }
+        autoFormatResponse: true,
+
+        // Default HTTP status code used for handled errors
+        // (used when no explicit error code is provided)
+        responseErrorCode: 422,
+
+
+        /**
+         * ------------------------------------------------------
+         * Security Headers & CORS Configuration
+         * ------------------------------------------------------
+         */
+
+        // Enable or disable built-in security header handling
+        enable_security_header: true,
+
+        // Additional custom response headers
+        // (applied only when security headers are enabled)
+        headers: {
+            "Server": "Unknown"
+        },
+
+        // Allowed CORS origins
+        allowedOrigins: ['*'],
+
+        // Allowed HTTP methods for CORS
+        allowedMethods: 'GET, POST, OPTIONS',
+
+        // Whitelisted request headers accepted from clients like token etc
+        allowedHeaders: [],
+
+
+        /**
+         * ------------------------------------------------------
+         * Multilingual / Localization Configuration
+         * ------------------------------------------------------
+         */
+
+        // Enable or disable multilingual support
+        lang: true,
+
+        // Determine request language dynamically
+        // Falls back to English if no language is provided
+        lang_var: (req) => req.getEnv('app_lng') || 'en',
+
+        // Default application language
+        lang_default: 'en',
+
+
+        /**
+         * ------------------------------------------------------
+         * Database Error Handling
+         * ------------------------------------------------------
+         */
+
+        // Generic database error message exposed to clients
+        db_error_message: "MYSQL_ERROR",
+
+
+        /**
+         * ------------------------------------------------------
+         * Authentication Whitelist
+         * ------------------------------------------------------
+         */
+
+        // URLs that do NOT require token-based authentication
+        whitelist_urls: [
+            "user/login"
+        ]
+    };
+
+
+    /**
+     * ==========================================================
+     * Centralized Request / Response Logger
+     * ==========================================================
+     * Logs execution time, request metadata, request payload,
+     * response data, and error information.
+     */
+    req.response_logger = (req, err, res) => {
+
+        // Calculate total request execution duration
+        const execution_duration =
+            req.end_timestamp.getTime() - req.begin_timestamp.getTime();
+
+        // Choose console color based on performance threshold
+        // Green  : < 250ms
+        // Yellow : 250 - 500ms
+        // Red    : > 500ms
+        const colour =
+            execution_duration > 500 ? 31 :
+            (execution_duration < 250 ? 32 : 33);
+
+        // Log request method, URL, and execution time
+        console.info(
+            \`\\x1b[\${colour}m%s\\x1b[0m\`,
+            \`\${req.method} \${req.getEnv('req-url')} :- \` +
+            \`\${Math.floor(execution_duration / 1000)}s \` +
+            \`\${execution_duration % 1000}ms\`
+        );
+
+        /**
+         * Build structured log object for auditing and debugging
+         */
+        const log = {
+            url: req.getEnv('req-url'),
+            method: req.method,
+            begin: req.begin_timestamp,
+            end: req.end_timestamp,
+            execution_duration,
+            remote_addr: req.getEnv("remote-addr"),
+            referer: req.getEnv('referer'),
+            user_agent: req.getEnv('user-agent'),
+            req_params: JSON.stringify(req.params),
+            req_data: JSON.stringify(req.data),
+            res_data: JSON.stringify(
+                res || (err ? { error: err.message } : {})
+            )
+        };
+
+        // Log every request/response pair
+        console.log('req_res', log);
+
+        /**
+         * Error-specific logging
+         * - Sequelize errors are logged separately for DB debugging
+         * - Other errors are logged with full stack traces
+         */
+        if (err && err.name && err.name.includes("Sequelize")) {
+            console.log('mysql_error', err.stack);
+        } else if (err) {
+            console.log('error', err.stack);
+        }
+    };
+
+
+    /**
+     * Alias for threaded or asynchronous logging use cases
+     */
+    req.thread_response_logger = req.response_logger;
+};
+`;
+
+const database = `/** ===Define Database Connections=== */
 module.exports = {
-    appConfig: `J3VzZSBzdHJpY3QnOwoKLyoqCiAqIFJlcXVlc3QgSW5pdGlhbGl6ZXIKICogLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogKiBUaGlzIG1vZHVsZSBjb25maWd1cmVzIHJlcXVlc3QtbGV2ZWwgc2V0dGluZ3MgYW5kIHV0aWxpdGllcy4KICogSXQgZW5yaWNoZXMgdGhlIGByZXFgIG9iamVjdCB3aXRoIGNvbmZpZ3VyYXRpb24sIHNlY3VyaXR5LAogKiBsb2NhbGl6YXRpb24sIGRhdGFiYXNlIGJpbmRpbmdzLCBhbmQgY2VudHJhbGl6ZWQgbG9nZ2luZy4KICovCm1vZHVsZS5leHBvcnRzID0gKHJlcSkgPT4gewoKICAgIC8qKgogICAgICogPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQogICAgICogUmVxdWVzdCBDb25maWd1cmF0aW9uCiAgICAgKiA9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CiAgICAgKiBDZW50cmFsaXplZCBjb25maWd1cmF0aW9uIGNvbnRyb2xsaW5nIGFwcGxpY2F0aW9uIGJlaGF2aW9yCiAgICAgKiBmb3IgdGhlIGxpZmV0aW1lIG9mIGEgc2luZ2xlIHJlcXVlc3QuCiAgICAgKi8KICAgIHJlcS5jb25maWcgPSB7CgogICAgICAgIC8qKgogICAgICAgICAqIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogICAgICAgICAqIFV0aWxpdHkgJiBEYXRhYmFzZSBCaW5kaW5ncwogICAgICAgICAqIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogICAgICAgICAqLwoKICAgICAgICAvLyBBdHRhY2ggY29tbW9uIHV0aWxpdHkgaGVscGVycyB0byBgcmVxLnV0aWxgCiAgICAgICAgYmluZFV0aWw6IHRydWUsCgogICAgICAgIC8vIEF0dGFjaCBkYXRhYmFzZSBoZWxwZXJzOiByZXEuZ2V0Q29ubmVjdGlvbigpLCByZXEuZGJDb25uZWN0aW9uKCkKICAgICAgICBiaW5kRGF0YWJhc2U6IHRydWUsCgoKICAgICAgICAvKioKICAgICAgICAgKiAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICAgICAgICAgKiBDb25zb2xlIExvZ2dpbmcgQ29udHJvbHMKICAgICAgICAgKiAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICAgICAgICAgKi8KCiAgICAgICAgLy8gRGlzYWJsZSBjb25zb2xlLmxvZyBvdXRwdXQgZ2xvYmFsbHkgd2hlbiBzZXQgdG8gdHJ1ZQogICAgICAgIGRpc2FibGVDb25zb2xlTG9nOiBmYWxzZSwKCiAgICAgICAgLy8gRGlzYWJsZSBjb25zb2xlLmluZm8gb3V0cHV0IGdsb2JhbGx5IHdoZW4gc2V0IHRvIHRydWUKICAgICAgICBkaXNhYmxlQ29uc29sZUluZm86IGZhbHNlLAoKCiAgICAgICAgLyoqCiAgICAgICAgICogLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgICAgICAgICogQVBJIFJlc3BvbnNlIEZvcm1hdHRpbmcKICAgICAgICAgKiAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICAgICAgICAgKi8KCiAgICAgICAgLy8gQXV0b21hdGljYWxseSB3cmFwIHJlc3BvbnNlcyBpbiBhIHN0YW5kYXJkIEFQSSBmb3JtYXQKICAgICAgICAvLyB7CiAgICAgICAgLy8gICBlcnJvcjogZmFsc2UsCiAgICAgICAgLy8gICBjb2RlOiAyMDAsCiAgICAgICAgLy8gICBtZXNzYWdlOiAiUmVzcG9uc2UiLAogICAgICAgIC8vICAgdGltZXN0YW1wOiA8dW5peF90aW1lc3RhbXA+LAogICAgICAgIC8vICAgZGF0YToge30KICAgICAgICAvLyB9CiAgICAgICAgYXV0b0Zvcm1hdFJlc3BvbnNlOiB0cnVlLAoKICAgICAgICAvLyBEZWZhdWx0IEhUVFAgc3RhdHVzIGNvZGUgdXNlZCBmb3IgaGFuZGxlZCBlcnJvcnMKICAgICAgICAvLyAodXNlZCB3aGVuIG5vIGV4cGxpY2l0IGVycm9yIGNvZGUgaXMgcHJvdmlkZWQpCiAgICAgICAgcmVzcG9uc2VFcnJvckNvZGU6IDQyMiwKCgogICAgICAgIC8qKgogICAgICAgICAqIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogICAgICAgICAqIFNlY3VyaXR5IEhlYWRlcnMgJiBDT1JTIENvbmZpZ3VyYXRpb24KICAgICAgICAgKiAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICAgICAgICAgKi8KCiAgICAgICAgLy8gRW5hYmxlIG9yIGRpc2FibGUgYnVpbHQtaW4gc2VjdXJpdHkgaGVhZGVyIGhhbmRsaW5nCiAgICAgICAgZW5hYmxlX3NlY3VyaXR5X2hlYWRlcjogdHJ1ZSwKCiAgICAgICAgLy8gQWRkaXRpb25hbCBjdXN0b20gcmVzcG9uc2UgaGVhZGVycwogICAgICAgIC8vIChhcHBsaWVkIG9ubHkgd2hlbiBzZWN1cml0eSBoZWFkZXJzIGFyZSBlbmFibGVkKQogICAgICAgIGhlYWRlcnM6IHsKICAgICAgICAgICAgIlNlcnZlciI6ICJVbmtub3duIgogICAgICAgIH0sCgogICAgICAgIC8vIEFsbG93ZWQgQ09SUyBvcmlnaW5zCiAgICAgICAgYWxsb3dlZE9yaWdpbnM6IFsnKiddLAoKICAgICAgICAvLyBBbGxvd2VkIEhUVFAgbWV0aG9kcyBmb3IgQ09SUwogICAgICAgIGFsbG93ZWRNZXRob2RzOiAnR0VULCBQT1NULCBPUFRJT05TJywKCiAgICAgICAgLy8gV2hpdGVsaXN0ZWQgcmVxdWVzdCBoZWFkZXJzIGFjY2VwdGVkIGZyb20gY2xpZW50cyBsaWtlIHRva2VuIGV0YwogICAgICAgIGFsbG93ZWRIZWFkZXJzOiBbXSwKCgogICAgICAgIC8qKgogICAgICAgICAqIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogICAgICAgICAqIE11bHRpbGluZ3VhbCAvIExvY2FsaXphdGlvbiBDb25maWd1cmF0aW9uCiAgICAgICAgICogLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgICAgICAgICovCgogICAgICAgIC8vIEVuYWJsZSBvciBkaXNhYmxlIG11bHRpbGluZ3VhbCBzdXBwb3J0CiAgICAgICAgbGFuZzogdHJ1ZSwKCiAgICAgICAgLy8gRGV0ZXJtaW5lIHJlcXVlc3QgbGFuZ3VhZ2UgZHluYW1pY2FsbHkKICAgICAgICAvLyBGYWxscyBiYWNrIHRvIEVuZ2xpc2ggaWYgbm8gbGFuZ3VhZ2UgaXMgcHJvdmlkZWQKICAgICAgICBsYW5nX3ZhcjogKHJlcSkgPT4gcmVxLmdldEVudignYXBwX2xuZycpIHx8ICdlbicsCgogICAgICAgIC8vIERlZmF1bHQgYXBwbGljYXRpb24gbGFuZ3VhZ2UKICAgICAgICBsYW5nX2RlZmF1bHQ6ICdlbicsCgoKICAgICAgICAvKioKICAgICAgICAgKiAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICAgICAgICAgKiBEYXRhYmFzZSBFcnJvciBIYW5kbGluZwogICAgICAgICAqIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogICAgICAgICAqLwoKICAgICAgICAvLyBHZW5lcmljIGRhdGFiYXNlIGVycm9yIG1lc3NhZ2UgZXhwb3NlZCB0byBjbGllbnRzCiAgICAgICAgZGJfZXJyb3JfbWVzc2FnZTogIk1ZU1FMX0VSUk9SIiwKCgogICAgICAgIC8qKgogICAgICAgICAqIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogICAgICAgICAqIEF1dGhlbnRpY2F0aW9uIFdoaXRlbGlzdAogICAgICAgICAqIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQogICAgICAgICAqLwoKICAgICAgICAvLyBVUkxzIHRoYXQgZG8gTk9UIHJlcXVpcmUgdG9rZW4tYmFzZWQgYXV0aGVudGljYXRpb24KICAgICAgICB3aGl0ZWxpc3RfdXJsczogWwogICAgICAgICAgICAidXNlci9sb2dpbiIKICAgICAgICBdCiAgICB9OwoKCiAgICAvKioKICAgICAqID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KICAgICAqIENlbnRyYWxpemVkIFJlcXVlc3QgLyBSZXNwb25zZSBMb2dnZXIKICAgICAqID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KICAgICAqIExvZ3MgZXhlY3V0aW9uIHRpbWUsIHJlcXVlc3QgbWV0YWRhdGEsIHJlcXVlc3QgcGF5bG9hZCwKICAgICAqIHJlc3BvbnNlIGRhdGEsIGFuZCBlcnJvciBpbmZvcm1hdGlvbi4KICAgICAqLwogICAgcmVxLnJlc3BvbnNlX2xvZ2dlciA9IChyZXEsIGVyciwgcmVzKSA9PiB7CgogICAgICAgIC8vIENhbGN1bGF0ZSB0b3RhbCByZXF1ZXN0IGV4ZWN1dGlvbiBkdXJhdGlvbgogICAgICAgIGNvbnN0IGV4ZWN1dGlvbl9kdXJhdGlvbiA9CiAgICAgICAgICAgIHJlcS5lbmRfdGltZXN0YW1wLmdldFRpbWUoKSAtIHJlcS5iZWdpbl90aW1lc3RhbXAuZ2V0VGltZSgpOwoKICAgICAgICAvLyBDaG9vc2UgY29uc29sZSBjb2xvciBiYXNlZCBvbiBwZXJmb3JtYW5jZSB0aHJlc2hvbGQKICAgICAgICAvLyBHcmVlbiAgOiA8IDI1MG1zCiAgICAgICAgLy8gWWVsbG93IDogMjUwIC0gNTAwbXMKICAgICAgICAvLyBSZWQgICAgOiA+IDUwMG1zCiAgICAgICAgY29uc3QgY29sb3VyID0KICAgICAgICAgICAgZXhlY3V0aW9uX2R1cmF0aW9uID4gNTAwID8gMzEgOgogICAgICAgICAgICAoZXhlY3V0aW9uX2R1cmF0aW9uIDwgMjUwID8gMzIgOiAzMyk7CgogICAgICAgIC8vIExvZyByZXF1ZXN0IG1ldGhvZCwgVVJMLCBhbmQgZXhlY3V0aW9uIHRpbWUKICAgICAgICBjb25zb2xlLmluZm8oCiAgICAgICAgICAgIGBceDFiWyR7Y29sb3VyfW0lc1x4MWJbMG1gLAogICAgICAgICAgICBgJHtyZXEubWV0aG9kfSAke3JlcS5nZXRFbnYoJ3JlcS11cmwnKX0gOi0gYCArCiAgICAgICAgICAgIGAke01hdGguZmxvb3IoZXhlY3V0aW9uX2R1cmF0aW9uIC8gMTAwMCl9cyBgICsKICAgICAgICAgICAgYCR7ZXhlY3V0aW9uX2R1cmF0aW9uICUgMTAwMH1tc2AKICAgICAgICApOwoKICAgICAgICAvKioKICAgICAgICAgKiBCdWlsZCBzdHJ1Y3R1cmVkIGxvZyBvYmplY3QgZm9yIGF1ZGl0aW5nIGFuZCBkZWJ1Z2dpbmcKICAgICAgICAgKi8KICAgICAgICBjb25zdCBsb2cgPSB7CiAgICAgICAgICAgIHVybDogcmVxLmdldEVudigncmVxLXVybCcpLAogICAgICAgICAgICBtZXRob2Q6IHJlcS5tZXRob2QsCiAgICAgICAgICAgIGJlZ2luOiByZXEuYmVnaW5fdGltZXN0YW1wLAogICAgICAgICAgICBlbmQ6IHJlcS5lbmRfdGltZXN0YW1wLAogICAgICAgICAgICBleGVjdXRpb25fZHVyYXRpb24sCiAgICAgICAgICAgIHJlbW90ZV9hZGRyOiByZXEuZ2V0RW52KCJyZW1vdGUtYWRkciIpLAogICAgICAgICAgICByZWZlcmVyOiByZXEuZ2V0RW52KCdyZWZlcmVyJyksCiAgICAgICAgICAgIHVzZXJfYWdlbnQ6IHJlcS5nZXRFbnYoJ3VzZXItYWdlbnQnKSwKICAgICAgICAgICAgcmVxX3BhcmFtczogSlNPTi5zdHJpbmdpZnkocmVxLnBhcmFtcyksCiAgICAgICAgICAgIHJlcV9kYXRhOiBKU09OLnN0cmluZ2lmeShyZXEuZGF0YSksCiAgICAgICAgICAgIHJlc19kYXRhOiBKU09OLnN0cmluZ2lmeSgKICAgICAgICAgICAgICAgIHJlcyB8fCAoZXJyID8geyBlcnJvcjogZXJyLm1lc3NhZ2UgfSA6IHt9KQogICAgICAgICAgICApCiAgICAgICAgfTsKCiAgICAgICAgLy8gTG9nIGV2ZXJ5IHJlcXVlc3QvcmVzcG9uc2UgcGFpcgogICAgICAgIGNvbnNvbGUubG9nKCdyZXFfcmVzJywgbG9nKTsKCiAgICAgICAgLyoqCiAgICAgICAgICogRXJyb3Itc3BlY2lmaWMgbG9nZ2luZwogICAgICAgICAqIC0gU2VxdWVsaXplIGVycm9ycyBhcmUgbG9nZ2VkIHNlcGFyYXRlbHkgZm9yIERCIGRlYnVnZ2luZwogICAgICAgICAqIC0gT3RoZXIgZXJyb3JzIGFyZSBsb2dnZWQgd2l0aCBmdWxsIHN0YWNrIHRyYWNlcwogICAgICAgICAqLwogICAgICAgIGlmIChlcnIgJiYgZXJyLm5hbWUgJiYgZXJyLm5hbWUuaW5jbHVkZXMoIlNlcXVlbGl6ZSIpKSB7CiAgICAgICAgICAgIGNvbnNvbGUubG9nKCdteXNxbF9lcnJvcicsIGVyci5zdGFjayk7CiAgICAgICAgfSBlbHNlIGlmIChlcnIpIHsKICAgICAgICAgICAgY29uc29sZS5sb2coJ2Vycm9yJywgZXJyLnN0YWNrKTsKICAgICAgICB9CiAgICB9OwoKCiAgICAvKioKICAgICAqIEFsaWFzIGZvciB0aHJlYWRlZCBvciBhc3luY2hyb25vdXMgbG9nZ2luZyB1c2UgY2FzZXMKICAgICAqLwogICAgcmVxLnRocmVhZF9yZXNwb25zZV9sb2dnZXIgPSByZXEucmVzcG9uc2VfbG9nZ2VyOwp9Owo=`,
-    database:`LyoqID09PURlZmluZSBEYXRhYmFzZSBDb25uZWN0aW9ucz09PSAqLwptb2R1bGUuZXhwb3J0cyA9IHsKICAgIGRlZmF1bHQ6IHsKICAgICAgICAvKiogQ29ubmVjdGlvbiBjcmVkZW50aWFscyAqLwogICAgICAgIGhvc3Q6ICdsb2NhbGhvc3QnLAogICAgICAgIHVzZXJuYW1lOiAnZGF0YWJhc2VfdXNlcicsCiAgICAgICAgcGFzc3dvcmQ6ICdwYXNzd29yZCcsCiAgICAgICAgZGF0YWJhc2U6ICdkYXRhYmFzZV9uYW1lJywKCiAgICAgICAgLyoqIE9wdGlvbmFsIHByb3h5IGRhdGFiYXNlIGNvbmZpZ3VyYXRpb24gKi8KICAgICAgICAvLyB0b2tlbjogJzxhdXRoZW50aWNhdGlvbiB0b2tlbiBvZiBwcm94eSBkYXRhYmFzZSBzZXJ2ZXI+JywKICAgICAgICAvLyBob3N0OiAnPHByb3h5IGhvc3QgVVJJPicsIC8vIEV4YW1wbGU6IGh0dHBzOi8vZGIudGVzdC5pbgoKICAgICAgICBjb25uZWN0VGltZW91dDogNjAgKiAxMDAwLAogICAgICAgIHBvb2w6IHsKICAgICAgICAgICAgbWluOiAwLAogICAgICAgICAgICBtYXg6IDUsCiAgICAgICAgICAgIGlkbGU6IDIwMCwKICAgICAgICAgICAgYWNxdWlyZTogNjAgKiAxMDAwLAogICAgICAgICAgICBldmljdDogMjAwCiAgICAgICAgfSwKICAgICAgICBsb2dnaW5nOiBteXNxbF9sb2cKICAgIH0KfTsKCi8qKiA9PT0gTXlTUUwgTG9nZ2VyID09PSAqLwpmdW5jdGlvbiBteXNxbF9sb2coc3FsLCBiZW5jaG1hcmspIHsKICAgIGNvbnNvbGUubG9nKCdzcWwnLCBgJHtiZW5jaG1hcmt9Ojoke3NxbH1gKTsKfQ==`,
-    hi: `bW9kdWxlLmV4cG9ydHMgPSB7CiAgICBNWVNRTF9FUlJPUjogYOCkueCkruClh+CkgiDgpJXgpYHgpJsg4KSk4KSV4KSo4KWA4KSV4KWAIOCkleCkoOCkv+CkqOCkvuCkh+Ckr+Cli+CkgiDgpJXgpL4g4KS44KS+4KSu4KSo4KS+IOCkleCksOCkqOCkviDgpKrgpKHgpLwg4KSw4KS54KS+IOCkueCliCwg4KSV4KWD4KSq4KSv4KS+IOCkrOCkvuCkpiDgpK7gpYfgpIIg4KSq4KWN4KSw4KSv4KS+4KS4IOCkleCksOClh+CkguClpGAsCiAgICBVTkFVVEhPUklaRUQ6IGDgpIXgpKjgpL7gpKfgpL/gpJXgpYPgpKQg4KSJ4KSq4KSv4KWL4KSX4KWkYCwKICAgIEFQUF9XT1JLSU5HOiBg4KSV4KS+4KSuIOCkleCksCDgpLDgpLngpL4g4KS54KWILi4uYCwKfQ==`,
-    en: `bW9kdWxlLmV4cG9ydHMgPSB7CiAgICBNWVNRTF9FUlJPUjogYFdlIGFyZSBmYWNpbmcgc29tZSB0ZWNobmljYWwgZGlmZmljdWx0aWVzLCBQbGVhc2UgdHJ5IGxhdGVyLmAsCiAgICBVTkFVVEhPUklaRUQ6IGBVbmF1dGhvcml6ZWQgYWNjZXNzLmAsCiAgICBBUFBfV09SS0lORzogYFdvcmtpbmcuLi5gLAp9`,
-    routes: `Y29uc3Qgcm91dGVzID0gcmVxdWlyZSgnZXhwcmVzcycpLlJvdXRlcigpOwpjb25zdCB1dGlsID0gcmVxdWlyZSgiLi4vaGVscGVycyIpOwoKLyoqIAogKiBDb25zdHJ1Y3QgcGF0aCB0byBSb3V0ZSBhY3Rpb25zLgogKiAKICogcm91dGVzLjxnZXR8cG9zdHxwdXR8ZGVsZXRlPignPFVybCBwYXRoPicsLi4uPE1pZGRsZXdhcmVzPiwgPGFjdGlvbj4pOwogKiAKICovCgpyb3V0ZXMuYWxsKCIvIiwgKHJlcSwgcmVzLCBuZXh0KSA9PiB7CiAgICByZXMuanNvbih7CiAgICAgICAgbWVzc2FnZTogIkFQUF9XT1JLSU5HIgogICAgfSk7Cn0pOwoKcm91dGVzLmFsbCgiL3RocmVhZCIsIGFzeW5jIChyZXEsIHJlcywgbmV4dCkgPT4gewogICAgY29uc3QgdHJlc3AgPSBhd2FpdCB1dGlsLmV4ZWNOZXdUaHJlYWRTeW5jKHJlcSk7CiAgICByZXMuanNvbih0cmVzcCk7Cn0pOwoKbW9kdWxlLmV4cG9ydHMgPSByb3V0ZXM7`,
-    helpers: `Y29uc3QgdXRpbCA9IHJlcXVpcmUoIkBrcnZpbmF5L2V4cHJlc3NfYXBpL3V0aWwiKTsKY29uc3QgdGhyZWFkcyA9IHJlcXVpcmUoIkBrcnZpbmF5L2V4cHJlc3NfYXBpL3RocmVhZHMiKTsKCmNsYXNzIGNvbW1vbkZ1bmN0aW9ucyBleHRlbmRzIHV0aWwgewoKICAgIC8qKgogICAgICogCiAgICAgKiBAcGFyYW0ge1JlcXVlc3R9IHJlcSBFeHByZXNzIFJlcXVlc3QgCiAgICAgKiBAcGFyYW0ge1N0cmluZ30gYWN0aXZpdHkgQWN0aXZpdHkgZmlsZSBuYW1lCiAgICAgKiBAcGFyYW0ge1N0cmluZ30gZXhlY0Z1bmN0aW9uIEZ1bmN0aW9uIG5hbWUgZGVmaW5lZCBvbiBBY3Rpdml0eSBjbGFzcwogICAgICogQHBhcmFtIHtPYmplY3R9IHBheWxvYWQgcGF5bG9hZCB0byBiZSBwYXNzZWQgb3ZlciBmdW5jdGlvbgogICAgICogQHBhcmFtIHtGdW5jdGlvbn0gY2FsbGJhY2sgY2FsbGJhY2sgZnVuY3Rpb24gY29udGFpbmluZyBlcnJvciBhbmQgcmVzcG9uc2UgYXMgcGFyYW1ldGVyLgogICAgICovCiAgICBzdGF0aWMgZXhlY05ld1RocmVhZChyZXEsIGFjdGl2aXR5ID0gJ2luZGV4JywgZXhlY0Z1bmN0aW9uID0gJ21haW4nLCBwYXlsb2FkID0ge30sIGNhbGxiYWNrKSB7CiAgICAgICAgdGhyZWFkcyhhY3Rpdml0eSwgZXhlY0Z1bmN0aW9uLCBwYXlsb2FkLCB7IC4uLnJlcS5oZWFkZXJzIH0sIChlcnIsIHJlc3ApID0+IHsKICAgICAgICAgICAgY2FsbGJhY2soZXJyLCByZXNwKTsKICAgICAgICB9KTsKICAgIH0KCiAgICAvKioKICAgICAqIAogICAgICogQHBhcmFtIHtSZXF1ZXN0fSByZXEgRXhwcmVzcyBSZXF1ZXN0IAogICAgICogQHBhcmFtIHtTdHJpbmd9IGFjdGl2aXR5IEFjdGl2aXR5IGZpbGUgbmFtZQogICAgICogQHBhcmFtIHtTdHJpbmd9IGV4ZWNGdW5jdGlvbiBGdW5jdGlvbiBuYW1lIGRlZmluZWQgb24gQWN0aXZpdHkgY2xhc3MKICAgICAqIEBwYXJhbSB7T2JqZWN0fSBwYXlsb2FkIHBheWxvYWQgdG8gYmUgcGFzc2VkIG92ZXIgZnVuY3Rpb24KICAgICAqIEByZXR1cm4gcmVzcG9uc2Ugb2JqZWN0IGFmdGVyIGV4ZWN1dGluZyB0aGUgcHJvdmlkZWQgZnVuY3Rpb24uCiAgICAgKiBAdGhyb3dzIEVycm9yIE9iamVjdCBvbiBlcnJvciBldmVudC4KICAgICAqLwogICAgc3RhdGljIGFzeW5jIGV4ZWNOZXdUaHJlYWRTeW5jKHJlcSwgYWN0aXZpdHkgPSAnaW5kZXgnLCBleGVjRnVuY3Rpb24gPSAnbWFpbicsIHBheWxvYWQgPSB7fSkgewogICAgICAgIHJldHVybiBuZXcgUHJvbWlzZSgocmVzb2x2ZSwgcmVqZWN0KSA9PiB7CiAgICAgICAgICAgIGNvbW1vbkZ1bmN0aW9ucy5leGVjTmV3VGhyZWFkKHJlcSwgYWN0aXZpdHksIGV4ZWNGdW5jdGlvbiwgcGF5bG9hZCwgKGVyciwgZGF0YSkgPT4gewogICAgICAgICAgICAgICAgaWYgKGVycikgeyByZWplY3QoZXJyKTsgfSBlbHNlIHsgcmVzb2x2ZShkYXRhKTsgfQogICAgICAgICAgICB9KTsKICAgICAgICB9KTsKICAgIH0KCiAgICAvKioKICAgICAqIEdldHMgYW4gZW52aXJvbm1lbnQgdmFyaWFibGUgZnJvbSBhdmFpbGFibGUgc291cmNlcywgYW5kIHByb3ZpZGVzIGVtdWxhdGlvbgogICAgICogZm9yIHVuc3VwcG9ydGVkIG9yIGluY29uc2lzdGVudCBlbnZpcm9ubWVudCB2YXJpYWJsZXMuCiAgICAgKiBBbHNvIGV4cG9zZXMgc29tZSBhZGRpdGlvbmFsIGN1c3RvbSBlbnZpcm9ubWVudCBpbmZvcm1hdGlvbi4KICAgICAqCiAgICAgKiBAcGFyYW0ge1JlcXVlc3QgT2JqZWN0fSByZXEgTm9kZSBFeHByZXNzIHJlcXVlc3Qgb2JqZWN0LgogICAgICogQHBhcmFtIHtzdHJpbmd9IGtleSBFbnZpcm9ubWVudCB2YXJpYWJsZSBuYW1lLgogICAgICogQHJldHVybiB7c3RyaW5nfSBFbnZpcm9ubWVudCB2YXJpYWJsZSBzZXR0aW5nLgogICAgICovCiAgICBzdGF0aWMgZW52KHJlcSwga2V5KSB7CiAgICAgICAgcmV0dXJuIHJlcS5nZXRFbnYoa2V5KSB8fCAnJzsKICAgIH0KCiAgICAvKiogRGVmaW5lIHlvdXIgbm9uIGRhdGFiYXNlIGNvbW1vbiBmdW5jdGlvbiBoZXJlICovCn0KCm1vZHVsZS5leHBvcnRzID0gY29tbW9uRnVuY3Rpb25zOyAK`,
-    activities: `Y2xhc3MgQWN0aXZpdGllcyB7CgogICAgc3RhdGljIGFzeW5jIG1haW4ocmVxLCBwYXlsb2FkKSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgcmV0dXJuIHsgbWVzc2FnZTogIlJlc3BvbnNlIGZyb20gdGhyZWFkIiwgLi4ucGF5bG9hZCB9OwogICAgICAgIH0gY2F0Y2ggKGVycikgewogICAgICAgICAgICBjb25zb2xlLmxvZyhlcnIpOwogICAgICAgICAgICB0aHJvdyBlcnI7CiAgICAgICAgfQogICAgfQoKfQoKbW9kdWxlLmV4cG9ydHMgPSBBY3Rpdml0aWVzOw==`,
-    models: `Y29uc3QgIG15c3FsICA9IHJlcXVpcmUoIkBrcnZpbmF5L2V4cHJlc3NfYXBpL215c3FsIik7Ci8qKgogKiBSZXR1cm4gTXlzcWwgY29ubmVjdGlvbiBmb3IgZGVmYXVsdCBkYXRhYmFzZWUgY29uZmlndXJhdGlvbiBwcmVzZW50IGluIGFwcENvbmZpZy5qcy4KICogVGhpcyB3aWxsIGFsbG93IHlvdSB0byBleGVjdXRlIHJhdyBzcWxzLgogKiBmb3IgZGV0YWlsZWQgZG9jdW1lbnQgc2VlOiBodHRwczovL3d3dy5ucG1qcy5jb20vcGFja2FnZS9Aa3J2aW5heS9teXNxbAogKi8KbW9kdWxlLmV4cG9ydHMgPSBteXNxbC5nZXRDb25uZWN0aW9uKCk7CgovKioKICogUmV0dXJuIFNlcXVlbGl6ZSBjb25uZWN0aW9uIGZvciBkZWZhdWx0IGRhdGFiYXNlZSBjb25maWd1cmF0aW9uIHByZXNlbnQgaW4gYXBwQ29uZmlnLmpzLgogKiBUaGlzIHdpbGwgYWxsb3cgeW91IHRvIGV4ZWN1dGUgcmF3IHNxbHMgYXMgd2VsbCBhcyBTZXF1ZWxpemUgT1JNLgogKiBmb3IgZGV0YWlsZWQgZG9jdW1lbnQgc2VlOiBodHRwczovL3NlcXVlbGl6ZS5vcmcKICovCi8vIGNvbnN0IG1vZGVscyA9IG15c3FsLmRiOwovLyBtb2RlbHMuY29ubmVjdGlvbiA9IG1vZGVscy5nZXRDb25uZWN0aW9uKCk7Ci8vIG1vZHVsZS5leHBvcnRzID0gbW9kZWxzOw==`,
-    server: `cmVxdWlyZSgiZG90ZW52IikuY29uZmlnKHsgcXVpZXQ6IHRydWUgfSk7CmNvbnN0IHNlcnZlciA9IHJlcXVpcmUoJ2V4cHJlc3MnKSgpOwpjb25zdCB7IGpzb24sIHVybGVuY29kZWQgfSA9IHJlcXVpcmUoJ2V4cHJlc3MnKTsKY29uc3QgZGVmYXVsdF9wb3J0ID0gODA4MDsKCnNlcnZlci51c2UoanNvbih7IGxpbWl0OiAnNTBtYicsIGV4dGVuZGVkOiB0cnVlIH0pKTsKc2VydmVyLnVzZSh1cmxlbmNvZGVkKHsgbGltaXQ6ICc1MG1iJywgZXh0ZW5kZWQ6IHRydWUgfSkpOwpzZXJ2ZXIudXNlKHJlcXVpcmUoIkBrcnZpbmF5L2V4cHJlc3NfYXBpIikpOwoKc2VydmVyLmxpc3Rlbihwcm9jZXNzLmVudi5QT1JUIHx8IGRlZmF1bHRfcG9ydCwgKCkgPT4gewogICAgY29uc29sZS5sb2coIlNlcnZlciBydW5uaW5nIG9uIHBvcnQgIiArIChwcm9jZXNzLmVudi5QT1JUIHx8IGRlZmF1bHRfcG9ydCkpOwp9KTs=`,
-    readme: `IyBBUEkgRGV2ZWxvcG1lbnQgR3VpZGUKCldlbGNvbWUgdG8geW91ciBFeHByZXNzIEFQSSBNaWNyb3NlcnZpY2UhIFRoaXMgZ3VpZGUgd2lsbCBoZWxwIHlvdSBzdGFydCBidWlsZGluZyBBUElzIHF1aWNrbHkgYW5kIGVmZmljaWVudGx5LgoKIyMgUXVpY2sgU3RhcnQKCllvdXIgcHJvamVjdCBpcyBub3cgc2V0IHVwIHdpdGggYSBjb21wbGV0ZSBBUEkgc3RydWN0dXJlLiBTdGFydCB0aGUgZGV2ZWxvcG1lbnQgc2VydmVyOgpgYGBzaApub2RlIHNlcnZlci5qcwpgYGAKCllvdXIgQVBJIHdpbGwgYmUgYXZhaWxhYmxlIGF0IGBodHRwOi8vbG9jYWxob3N0OjgwODBgIChvciB5b3VyIGNvbmZpZ3VyZWQgUE9SVCkuCgojIyBQcm9qZWN0IFN0cnVjdHVyZSBPdmVydmlldwoKYGBgCnNyYy8KfC0tLS0gYWN0aXZpdGllcy8gICAgICAjIEJhY2tncm91bmQgdGFza3MgYW5kIHRocmVhZGVkIG9wZXJhdGlvbnMKfC0tLS0gY29uZmlnLyAgICAgICAgICAjIEFwcGxpY2F0aW9uIGNvbmZpZ3VyYXRpb24KfC0tLS0gaGVscGVycy8gICAgICAgICAjIFV0aWxpdHkgZnVuY3Rpb25zCnwtLS0tIGxhbmcvICAgICAgICAgICAgIyBNdWx0aS1sYW5ndWFnZSBzdXBwb3J0CnwtLS0tIGxvZ3MvICAgICAgICAgICAgIyBBcHBsaWNhdGlvbiBsb2dzCnwtLS0tIG1vZGVscy8gICAgICAgICAgIyBEYXRhYmFzZSBtb2RlbHMgYW5kIGNvbm5lY3Rpb25zCnwtLS0tIHJvdXRlcy8gICAgICAgICAgIyBBUEkgZW5kcG9pbnRzCmBgYAoKIyMgVXNhZ2UKCjEuICoqQWRkaW5nIFJvdXRlcyoqIC0gRGVmaW5lIHlvdXIgZW5kcG9pbnRzIGluIGBzcmMvcm91dGVzL2luZGV4LmpzYAoyLiAqKkNyZWF0aW5nIE1vZGVscyoqIC0gQWRkIGRhdGFiYXNlIG1vZGVscyBpbiBgc3JjL21vZGVscy9gCjMuICoqV3JpdGluZyBIZWxwZXJzKiogLSBDcmVhdGUgdXRpbGl0eSBmdW5jdGlvbnMgaW4gYHNyYy9oZWxwZXJzL2AKNC4gKipDb25maWd1cmluZyBMYW5ndWFnZXMqKiAtIEFkZCB0cmFuc2xhdGlvbnMgaW4gYHNyYy9sYW5nL2AKNS4gKipJbXBsZW1lbnRpbmcgVGhyZWFkcyoqIC0gQWRkIGJhY2tncm91bmQgdGFza3MgaW4gYHNyYy9hY3Rpdml0aWVzL2AKNi4gKipMb2dnaW5nKiogLSBMb2dzIGFyZSBnZW5lcmF0ZWQgaW4gYHNyYy9sb2dzL2AKCgojIyBDbGF1ZGUgQUkgQWdlbnQKClRoaXMgcHJvamVjdCBpbmNsdWRlcyBgQ0xBVURFLm1kYCBhIGJ1aWx0LWluIGFnZW50IGd1aWRlIHRoYXQgaW5zdHJ1Y3RzIENsYXVkZSBob3cgdG8gd3JpdGUgQVBJcyB1c2luZyB0aGlzIHBhY2thZ2UncyBleGFjdCBwYXR0ZXJucywgY29udmVudGlvbnMsIGFuZCBhcmNoaXRlY3R1cmUuCgojIyMgRW5oYW5jZSB5b3VyIHdvcmtmbG93IHdpdGggQ2xhdWRlIENvZGUKClBsYWNlIGBDTEFVREUubWRgIGluc2lkZSBgLmNsYXVkZS9gIHNvIENsYXVkZSBDb2RlIGxvYWRzIGl0IGF1dG9tYXRpY2FsbHkgYXMgcHJvamVjdCBjb250ZXh0IGV2ZXJ5IHRpbWUgeW91IG9wZW4gdGhpcyBwcm9qZWN0OgoKYGBgc2gKbWtkaXIgLXAgLmNsYXVkZQpjcCBDTEFVREUubWQgLmNsYXVkZS9DTEFVREUubWQKYGBgCgpPbmNlIGluIHBsYWNlLCBDbGF1ZGUgd2lsbCBhdXRvbWF0aWNhbGx5IGZvbGxvdyBhbGwgY29udmVudGlvbnMgYHJlcS5kYXRhYCB1c2FnZSwgYG5leHQoZXJyKWAgZXJyb3IgaGFuZGxpbmcsIHJlc3BvbnNlIGVudmVsb3BlIGZvcm1hdCwgaTE4biBrZXkgcGF0dGVybnMsIHRocmVhZC9hY3Rpdml0eSBzdHJ1Y3R1cmUsIGFuZCBkYXRhYmFzZSBhY2Nlc3MgcGF0dGVybnMgd2l0aG91dCBuZWVkaW5nIGV4cGxpY2l0IHByb21wdGluZy4KCiMjIEFkZGl0aW9uYWwgUmVzb3VyY2VzCgotIFtFeHByZXNzIERvY3VtZW50YXRpb25dKGh0dHBzOi8vZXhwcmVzc2pzLmNvbS8pCi0gW1NlcXVlbGl6ZSBEb2N1bWVudGF0aW9uXShodHRwczovL3NlcXVlbGl6ZS5vcmcvKQotIFtNeVNRTDIgRG9jdW1lbnRhdGlvbl0oaHR0cHM6Ly9naXRodWIuY29tL3NpZG9yYXJlcy9ub2RlLW15c3FsMikKCiMjIE5lZWQgSGVscD8KCi0gQ2hlY2sgdGhlIGxvZ3MgaW4gYHNyYy9sb2dzL2AgZGlyZWN0b3J5Ci0gUmV2aWV3IHRoZSBjb25maWd1cmF0aW9uIGluIGBzcmMvY29uZmlnL2FwcENvbmZpZy5qc2AKLSBFbnN1cmUgZGF0YWJhc2UgY3JlZGVudGlhbHMgYXJlIGNvcnJlY3QgaW4gYC5lbnZgCi0gVmVyaWZ5IGFsbCBkZXBlbmRlbmNpZXMgYXJlIGluc3RhbGxlZDogYG5wbSBpbnN0YWxsYAoKLS0tCgoqKkhhcHB5IENvZGluZyEqKgoKU3RhcnQgYnVpbGRpbmcgYW1hemluZyBBUElzIHdpdGggeW91ciBFeHByZXNzIE1pY3Jvc2VydmljZSBmcmFtZXdvcmsuCg==`,
-    favicon: `PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjI1NiIgaGVpZ2h0PSIxMjgiIHZpZXdCb3g9IjAgMCAyNTYgMTI4Ij48dGV4dCB4PSI0OSUiIHk9IjU5JSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzBBMCIgc3R5bGU9ImZvbnQtc2l6ZToxMjBweDtmb250LXdlaWdodDo4MDA7Zm9udC1mYW1pbHk6c2Fucy1zZXJpZjsiID5LRUE8L3RleHQ+PC9zdmc+`,
+    default: {
+        /** Connection credentials */
+        host: 'localhost',
+        username: 'database_user',
+        password: 'password',
+        database: 'database_name',
+
+        /** Optional proxy database configuration */
+        // token: '<authentication token of proxy database server>',
+        // host: '<proxy host URI>', // Example: https://db.test.in
+
+        connectTimeout: 60 * 1000,
+        pool: { min: 2, max: 20, idle: 30000, acquire: 30000, evict: 1000 },
+        logging: mysql_log
+    }
+};
+
+/** === MySQL Logger === */
+function mysql_log(sql, benchmark) {
+    console.log('sql', \`\${benchmark}::\${sql}\`);
+}`;
+
+const hi = `module.exports = {
+    MYSQL_ERROR: \`हमें कुछ तकनीकी कठिनाइयों का सामना करना पड़ रहा है, कृपया बाद में प्रयास करें।\`,
+    UNAUTHORIZED: \`अनाधिकृत उपयोग।\`,
+    APP_WORKING: \`काम कर रहा है...\`,
+}`;
+
+const en = `module.exports = {
+    MYSQL_ERROR: \`We are facing some technical difficulties, Please try later.\`,
+    UNAUTHORIZED: \`Unauthorized access.\`,
+    APP_WORKING: \`Working...\`,
+}`;
+
+const routes = `const routes = require('express').Router();
+const util = require("../helpers");
+
+/** 
+ * Construct path to Route actions.
+ * 
+ * routes.<get|post|put|delete>('<Url path>',...<Middlewares>, <action>);
+ * 
+ */
+
+routes.all("/", (req, res, next) => {
+    res.json({
+        message: "APP_WORKING"
+    });
+});
+
+routes.all("/thread", async (req, res, next) => {
+    const tresp = await util.execNewThreadSync(req);
+    res.json(tresp);
+});
+
+module.exports = routes;`;
+
+const helpers = `const util = require("@krvinay/express_api/util");
+const threads = require("@krvinay/express_api/threads");
+
+class commonFunctions extends util {
+
+    /**
+     * 
+     * @param {Request} req Express Request 
+     * @param {String} activity Activity file name
+     * @param {String} execFunction Function name defined on Activity class
+     * @param {Object} payload payload to be passed over function
+     * @param {Function} callback callback function containing error and response as parameter.
+     */
+    static execNewThread(req, activity = 'index', execFunction = 'main', payload = {}, callback) {
+        threads(activity, execFunction, payload, { ...req.headers }, (err, resp) => {
+            callback(err, resp);
+        });
+    }
+
+    /**
+     * 
+     * @param {Request} req Express Request 
+     * @param {String} activity Activity file name
+     * @param {String} execFunction Function name defined on Activity class
+     * @param {Object} payload payload to be passed over function
+     * @return response object after executing the provided function.
+     * @throws Error Object on error event.
+     */
+    static async execNewThreadSync(req, activity = 'index', execFunction = 'main', payload = {}) {
+        return new Promise((resolve, reject) => {
+            commonFunctions.execNewThread(req, activity, execFunction, payload, (err, data) => {
+                if (err) { reject(err); } else { resolve(data); }
+            });
+        });
+    }
+
+    /**
+     * Gets an environment variable from available sources, and provides emulation
+     * for unsupported or inconsistent environment variables.
+     * Also exposes some additional custom environment information.
+     *
+     * @param {Request Object} req Node Express request object.
+     * @param {string} key Environment variable name.
+     * @return {string} Environment variable setting.
+     */
+    static env(req, key) {
+        return req.getEnv(key) || '';
+    }
+
+    /** Define your non database common function here */
 }
+module.exports = commonFunctions; 
+`;
+
+const activities = `class Activities {
+
+    static async main(req, payload) {
+        try {
+            return { message: "Response from thread", ...payload };
+        } catch (err) {
+            console.log(err);
+            throw err;
+        }
+    }
+
+}
+
+module.exports = Activities;`;
+
+const models = `const  mysql  = require("@krvinay/express_api/mysql");
+/**
+ * Return Mysql connection for default databasee configuration present in appConfig.js.
+ * This will allow you to execute raw sqls.
+ * for detailed document see: https://www.npmjs.com/package/@krvinay/mysql
+ */
+module.exports = mysql.getConnection();
+
+/**
+ * Return Sequelize connection for default databasee configuration present in appConfig.js.
+ * This will allow you to execute raw sqls as well as Sequelize ORM.
+ * for detailed document see: https://sequelize.org
+ */
+// const models = mysql.db;
+// models.connection = models.getConnection();
+// module.exports = models;`;
+
+const server = `require("dotenv").config({ quiet: true });
+const server = require('express')();
+const { json, urlencoded } = require('express');
+const default_port = 8080;
+
+server.use(json({ limit: '50mb', extended: true }));
+server.use(urlencoded({ limit: '50mb', extended: true }));
+server.use(require("@krvinay/express_api"));
+
+server.listen(process.env.PORT || default_port, () => {
+    console.log("Server running on port " + (process.env.PORT || default_port));
+});`;
+
+const readme = `# API Development Guide
+
+Welcome to your Express API Microservice! This guide will help you start building APIs quickly and efficiently.
+
+## Quick Start
+
+Your project is now set up with a complete API structure. Start the development server:
+\`\`\`sh
+node server.js
+\`\`\`
+
+Your API will be available at \`http://localhost:8080\` (or your configured PORT).
+
+## Project Structure Overview
+
+\`\`\`
+src/
+|---- activities/      # Background tasks and threaded operations
+|---- config/          # Application configuration
+|---- helpers/         # Utility functions
+|---- lang/            # Multi-language support
+|---- logs/            # Application logs
+|---- models/          # Database models and connections
+|---- routes/          # API endpoints
+\`\`\`
+
+## Usage
+
+1. **Adding Routes** - Define your endpoints in \`src/routes/index.js\`
+2. **Creating Models** - Add database models in \`src/models/\`
+3. **Writing Helpers** - Create utility functions in \`src/helpers/\`
+4. **Configuring Languages** - Add translations in \`src/lang/\`
+5. **Implementing Threads** - Add background tasks in \`src/activities/\`
+6. **Logging** - Logs are generated in \`src/logs/\`
+
+
+## Claude AI Agent
+
+This project includes \`CLAUDE.md\` a built-in agent guide that instructs Claude how to write APIs using this package's exact patterns, conventions, and architecture.
+
+### Enhance your workflow with Claude Code
+
+Place \`CLAUDE.md\` inside \`.claude/\` so Claude Code loads it automatically as project context every time you open this project:
+
+\`\`\`sh
+mkdir -p .claude
+cp CLAUDE.md .claude/CLAUDE.md
+\`\`\`
+
+Once in place, Claude will automatically follow all conventions \`req.data\` usage, \`next(err)\` error handling, response envelope format, i18n key patterns, thread/activity structure, and database access patterns without needing explicit prompting.
+
+## Additional Resources
+
+- [Express Documentation](https://expressjs.com/)
+- [Sequelize Documentation](https://sequelize.org/)
+- [MySQL2 Documentation](https://github.com/sidorares/node-mysql2)
+
+## Need Help?
+
+- Check the logs in \`src/logs/\` directory
+- Review the configuration in \`src/config/appConfig.js\`
+- Ensure database credentials are correct in \`.env\`
+- Verify all dependencies are installed: \`npm install\`
+
+---
+
+**Happy Coding!**
+
+Start building amazing APIs with your Express Microservice framework.
+`;
+
+const favicon = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="256" height="128" viewBox="0 0 256 128"><text x="49%" y="59%" text-anchor="middle" dominant-baseline="middle" fill="#0A0" style="font-size:120px;font-weight:800;font-family:sans-serif;" >KEA</text></svg>`;
+
+const gitignore = `# User specific & automatically generated files #
+#################################################
+node_modules
+package-lock.json
+.env
+.env.*
+*/logs/*.*
+*/logs/*/*.*
+*.mo
+*.old
+*.pdf
+*.xls
+*.xlsx
+*.zip
+*/config/*.*
+!*/config/appConfig.js
+ecosystem.config.js
+# IDE and editor specific files #
+#################################
+/nbproject
+.idea
+.vscode
+/.project
+/.buildpath
+/.settings/
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
+`;
+
+module.exports = { appConfig, database, hi, en, routes, helpers, activities, models, server, readme, favicon, gitignore };
