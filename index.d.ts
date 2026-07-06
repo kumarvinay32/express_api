@@ -7,7 +7,6 @@
 
 import { Handler } from 'express';
 import Util = require('./util');
-import Threads = require('./threads');
 import Mysql = require('./mysql');
 
 /**
@@ -72,33 +71,14 @@ declare module 'express-serve-static-core' {
     }
 }
 
-declare const expressApi: Handler & {
-    /**
-     * @deprecated This export will be removed in v2.0.0
-     * Use following instead:
-     * ```js
-     * const util = require("@krvinay/express_api/util");
-     * ```
-     */
-    util: typeof Util;
-
-    /**
-     * @deprecated This export will be removed in v2.0.0
-     * Use following instead:
-     * ```js
-     * const threads = require("@krvinay/express_api/threads");
-     * ```
-     */
-    threads: typeof Threads;
-
-    /**
-     * @deprecated This export will be removed in v2.0.0
-     * Use following instead:
-     * ```js
-     * const mysql = require("@krvinay/express_api/mysql");
-     * ```
-     */
-    mysql: typeof Mysql;
-};
+/**
+ * The framework middleware — mount it on your Express app:
+ * ```js
+ * server.use(require("@krvinay/express_api"));
+ * ```
+ * Utilities are available as subpath imports:
+ * `@krvinay/express_api/util`, `@krvinay/express_api/threads`, `@krvinay/express_api/mysql`.
+ */
+declare const expressApi: Handler;
 
 export = expressApi;

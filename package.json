@@ -1,11 +1,14 @@
 {
   "name": "@krvinay/express_api",
-  "version": "1.0.8",
+  "version": "2.0.0",
   "description": "Node API Application server",
   "author": "Vinay Kumar",
   "license": "MIT",
   "main": "index.js",
   "types": "index.d.ts",
+  "bin": {
+    "express-api": "bin/cli.js"
+  },
   "exports": {
     ".": {
       "types": "./index.d.ts",
@@ -33,27 +36,71 @@
     "url": "git+https://github.com/kumarvinay32/express_api.git"
   },
   "keywords": [
-    "API",
-    "SERVER"
+    "api",
+    "server",
+    "express",
+    "expressjs",
+    "express4",
+    "express5",
+    "rest",
+    "rest-api",
+    "api-server",
+    "microservice",
+    "framework",
+    "scaffold",
+    "boilerplate",
+    "typescript",
+    "nodejs",
+    "mysql",
+    "mysql2",
+    "sequelize",
+    "orm",
+    "i18n",
+    "multilingual",
+    "threads",
+    "worker",
+    "cors",
+    "security-headers",
+    "middleware",
+    "logger"
   ],
   "bugs": {
     "url": "https://github.com/kumarvinay32/express_api/issues"
   },
   "homepage": "https://github.com/kumarvinay32/express_api#readme",
-  "dependencies": {
+  "peerDependencies": {
+    "@types/express": "^4.17.21 || ^5.0.0",
     "dotenv": "^17.3.1",
-    "express": "^4.21.2",
+    "express": "^4.21.2 || ^5.0.0",
     "mysql2": "^3.20.0",
     "sequelize": "^6.37.8"
+  },
+  "peerDependenciesMeta": {
+    "@types/express": {
+      "optional": true
+    },
+    "dotenv": {
+      "optional": true
+    },
+    "express": {
+      "optional": true
+    },
+    "mysql2": {
+      "optional": true
+    },
+    "sequelize": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">= 18.0.0"
   },
   "scripts": {
-    "postinstall": "node install/index.js",
+     "postinstall": "node -e \"process.stderr.write('\\nRun \\\"npx express_api init\\\" to complete the setup.\\n')\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "files": [
+    "bin",
     "index.d.ts",
     "index.js",
     "install",

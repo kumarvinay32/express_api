@@ -32,6 +32,7 @@ project-root/
 └── .env                        # NODE_ENV, PORT, SRC, DB_*
 ```
 
+File extensions inside `src/` are `.js` in JavaScript projects and `.ts` in TypeScript projects. The framework loads either (`.js`, `.cjs`, `.ts`, `.cts`) — both `module.exports = …` and `export default …` work for every application file (appConfig, database, routes, models, helpers, lang, activities). In TypeScript projects, type route handlers with `Request`, `Response`, `NextFunction` from `express`; the package augments `Request` so `req.data`, `req.db`, `req.getConnection()`, `req.writeLog()`, `req.formatMessage()` etc. are fully typed.
 
 ---
 
@@ -139,6 +140,7 @@ module.exports = router;
 - **Always use `req.data`** instead of `req.body` or `req.query` directly.
 - **Always call `next(err)`** on catch — never `res.json({ error: true })` inside catch unless you need a custom error shape.
 - The global `errorHandler` catches anything passed to `next(err)` and returns `{ error: true, code: responseErrorCode, message: err.message }`. It translates `err.message` through i18n automatically.
+- Rejected `async` handlers are auto-forwarded to the `errorHandler` as a safety net (on Express 4 and 5 alike) — but explicit `try/catch + next(err)` remains the convention.
 - Throw with an i18n key to get auto-translated error messages: `throw new Error('INVALID_INPUT')`.
 
 ---
