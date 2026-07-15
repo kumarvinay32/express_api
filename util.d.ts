@@ -151,11 +151,11 @@ declare class util {
     /**
      * Add minutes to a date and return in the given format.
      */
-    static add_minutes(timestamp: any, no_of_minutes: number, format?: string): number;
+    static add_minutes(timestamp: any, no_of_minutes: number, format?: string): string;
 
     /**
      * Get the difference between two dates in the given unit.
-     * @param diff_in 'Y' | 'M' | 'D' | 'H' | 'I' | 'S' — defaults to microseconds
+     * @param diff_in 'Y' | 'M' | 'D' | 'H' | 'I' | 'S' — defaults to 'D' (days)
      */
     static date_diff(from_date: Date | string, to_date: Date | string, diff_in?: string): number;
 

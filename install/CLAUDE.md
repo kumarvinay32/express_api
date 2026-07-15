@@ -32,7 +32,7 @@ project-root/
 └── .env                        # NODE_ENV, PORT, SRC, DB_*
 ```
 
-File extensions inside `src/` are `.js` in JavaScript projects and `.ts` in TypeScript projects. The framework loads either (`.js`, `.cjs`, `.ts`, `.cts`) — both `module.exports = …` and `export default …` work for every application file (appConfig, database, routes, models, helpers, lang, activities). In TypeScript projects, type route handlers with `Request`, `Response`, `NextFunction` from `express`; the package augments `Request` so `req.data`, `req.db`, `req.getConnection()`, `req.writeLog()`, `req.formatMessage()` etc. are fully typed.
+File extensions inside `src/` are `.js` in JavaScript projects and `.ts` in TypeScript projects. The framework loads either (`.js`, `.cjs`, `.ts`, `.cts`) — both `module.exports = …` and `export default …` work for every application file (appConfig, database, routes, models, helpers, lang, activities). In TypeScript projects, type route handlers with `Request`, `Response`, `NextFunction` from `express`; the package augments `Request` so `req.data`, `req.getConnectionORM()`, `req.getConnection()`, `req.writeLog()`, `req.formatMessage()` etc. are fully typed.
 
 ---
 
@@ -43,11 +43,11 @@ The package enriches every Express `req` with the following properties. Use them
 | Property | Type | Description |
 |---|---|---|
 | `req.data` | `object` | Merged `{ ...req.body, ...req.query }` — always use this instead of reading body/query separately |
-| `req.db` | `object` | Sequelize models + `{ sequelize, Op, QueryTypes }` |
-| `req.db.<ModelName>` | Sequelize model | Access a loaded model by name (e.g. `req.db.User`) |
-| `req.db.getConnection(db_name?)` | function | Returns the raw Sequelize instance for `db_name` (defaults to `'default'`) |
-| `req.getConnection(db_name?)` | function | Returns a `MySqlUtil` instance wrapping the Sequelize connection — use for raw SQL |
-| `req.dbConnection(db_name?)` | function | Alias for `req.db.getConnection` — returns raw Sequelize instance |
+| `req.db` | `object` | **⚠️ Deprecated — removed in v3.0.0; do not use in new code.** Present when `bindDatabase` is `true` and `disableSequelizeORM` is not set: Sequelize models from every configured database, merged + `{ sequelize, Op, QueryTypes, <db_name>_connection, getConnection }`. With `disableSequelizeORM: true`, `req.db` is not created at all (`undefined`). Use `req.getConnectionORM()` instead |
+| `req.db.<ModelName>` | Sequelize model | **⚠️ Deprecated — removed in v3.0.0.** Use `req.getConnectionORM().<ModelName>` instead |
+| `req.getConnection(db_name?\|credentials?)` | function | Returns a `MySqlUtil` instance wrapping the Sequelize connection — use for raw SQL. Accepts a configured `db_name`, or an ad-hoc credentials object (`{ host, username, password, database, ... }`) to connect outside the static config. Raw Sequelize instance is available via `.connection` |
+| `req.dbConnection(db_name?)` | function | **⚠️ Deprecated — removed in v3.0.0; do not use in new code.** Returns the raw Sequelize instance for a configured `db_name`. Use `req.getConnection(db_name?).connection` instead (also works with ad-hoc credentials) |
+| `req.getConnectionORM(db_name?\|credentials?)` | function | Loads Sequelize models into an **isolated** object (`orm.<ModelName>`), separate from `req.db` — use this when you don't want to mutate the shared `req.db`. Accepts a configured `db_name`, or ad-hoc credentials with a **required** `models` field. Throws if `models` is omitted on credentials. Works even when `disableSequelizeORM` is `true` |
 | `req.config` | `object` | App config from `appConfig.js` (databases key removed per-request) |
 | `req.util` | `util class` | Static utility helpers (pluralize, date, uuid, hash, …) |
 | `req.getEnv(key)` | function | Read request-level environment info (`'host'`, `'remote-addr'`, `'url'`, `'base-url'`, `'full-url'`, `'https'`, `'protocol'`, or any header name) |
@@ -114,7 +114,8 @@ const router = express.Router();
 router.post('/login', async (req, res, next) => {
     try {
         const { email, password } = req.data;  // always use req.data
-        const user = await req.db.User.findOne({ where: { email } });
+        const orm = req.getConnectionORM();    // Sequelize models for the default db
+        const user = await orm.User.findOne({ where: { email } });
         if (!user) return res.json({ error: true, code: 404, message: 'USER_NOT_FOUND' });
         res.json({ data: { token: '...' } });
     } catch (err) {
@@ -125,7 +126,7 @@ router.post('/login', async (req, res, next) => {
 // Protected route
 router.get('/users', async (req, res, next) => {
     try {
-        const users = await req.db.User.findAll();
+        const users = await req.getConnectionORM().User.findAll();
         res.json({ data: { users } });
     } catch (err) {
         next(err);
@@ -152,7 +153,15 @@ Use `req.getConnection()` for MySQL1-style raw SQL. It wraps Sequelize but expos
 ```js
 // Async/await (preferred)
 const conn = req.getConnection();                  // default DB
-const conn = req.getConnection('analytics');       // named DB
+const conn = req.getConnection('analytics');       // named DB (from src/config/database.js)
+
+// Ad-hoc credentials — connect to a database not present in src/config/database.js.
+// Same field shape as an entry in that file; the connection is cached and reused
+// for identical credentials (host + port + database + username + password + token).
+const conn = req.getConnection({ host, username, password, database });
+
+// Raw Sequelize instance, if you need it (e.g. for a manual query builder call):
+const rawConn = conn.connection;
 
 // SELECT
 const rows = await conn.querySync('SELECT * FROM users WHERE id = ?', [userId]);
@@ -193,7 +202,7 @@ conn.raw(sql)                // mark a string as raw (no escaping)
 
 ---
 
-## Database — Sequelize ORM via `req.db`
+## Database — Sequelize ORM via `req.getConnectionORM()`
 
 Model files live in `src/models/datasource/<db_name>/`. Each file exports a function `(sequelize, DataTypes) => Model`.
 
@@ -208,19 +217,32 @@ module.exports = (sequelize, DataTypes) => {
 };
 ```
 
-Usage in routes:
+`req.getConnectionORM()` returns the models of a database as an **isolated object** — plus `sequelize`, `Op`, `QueryTypes`, and the raw Sequelize instance as `connection`. Pass a configured `db_name` (defaults to `'default'`), or ad-hoc credentials with a **required** `models` field naming the folder to load. Results are cached per target, so repeated calls reuse the same object:
 
 ```js
 // ORM queries
-const user = await req.db.User.findOne({ where: { id: req.data.id } });
-const all  = await req.db.User.findAll({ where: { active: 1 }, order: [['name', 'ASC']] });
-await req.db.User.create({ name, email });
-await req.db.User.update({ active: 0 }, { where: { id } });
+const orm = req.getConnectionORM();            // default db; or ('db_name')
+const user = await orm.User.findOne({ where: { id: req.data.id } });
+const all  = await orm.User.findAll({ where: { active: 1 }, order: [['name', 'ASC']] });
+await orm.User.create({ name, email });
+await orm.User.update({ active: 0 }, { where: { id } });
+
+// Ad-hoc credentials — `models` is required here (unlike req.getConnection)
+const tenantOrm = req.getConnectionORM({ host, username, password, database, models: 'default' });
+const tenantUser = await tenantOrm.User.findOne({ where: { id: req.data.id } });
+// each target gets its own isolated models — nothing is shared or overwritten
 
 // Raw SQL via Sequelize instance
-const conn = req.dbConnection();   // raw Sequelize instance
-const rows = await conn.query('SELECT * FROM users', { type: req.db.QueryTypes.SELECT });
+const conn = req.getConnection().connection;   // raw Sequelize instance (also works for ad-hoc credentials)
+const conn2 = orm.connection;                  // same thing, from a getConnectionORM() result
+const rows = await conn.query('SELECT * FROM users', { type: orm.QueryTypes.SELECT });
 ```
+
+### ⚠️ Deprecated: `req.db` and `req.dbConnection()` (removed in v3.0.0)
+
+Older code accessed the merged models of all databases via `req.db` (`req.db.User`, `req.db.Op`, `req.db.QueryTypes`, `req.db.<db_name>_connection`, `req.db.getConnection`) and the raw Sequelize instance via `req.dbConnection()`. Both are **deprecated and will be removed in v3.0.0** — they still work throughout v2.x (the first use of each emits a one-time `DeprecationWarning`), but do **not** use them in new code. Every member has a direct replacement: `req.getConnectionORM()` for models/`Op`/`QueryTypes`, and `req.getConnection().connection` for the raw Sequelize instance. Unlike `req.db` (one object shared by every request, where two same-named models overwrite each other), `getConnectionORM` results are isolated per target.
+
+Results are cached per target (same `db_name`, or same credentials + `models` folder), so repeated calls reuse the same object instead of redefining models each time. Throws if a credentials object omits `models`.
 
 ---
 
@@ -232,8 +254,9 @@ module.exports = (req) => {
     req.config = {
         // --- Behaviour flags ---
         autoFormatResponse: true,       // wrap all res.json() in standard envelope
-        bindDatabase: true,             // attach req.db and req.getConnection
+        bindDatabase: true,             // attach req.getConnection, req.getConnectionORM (and the deprecated req.db / req.dbConnection)
         bindUtil: true,                 // attach req.util
+        disableSequelizeORM: false,     // true: req.db is not created at all; getConnection/getConnectionORM still work
 
         // --- Security headers ---
         enable_security_header: true,
@@ -260,8 +283,8 @@ module.exports = (req) => {
         // --- Public (no-auth) routes ---
         whitelist_urls: ['/login', '/health'],
 
-        // --- Database references ---
-        databases: require('./database')(req),
+        // Note: database credentials do NOT go here — the framework loads
+        // src/config/database.js automatically (see below).
     };
 
     // --- Response logger hook ---
@@ -274,6 +297,8 @@ module.exports = (req) => {
 ---
 
 ## database.js
+
+Loaded automatically by the framework. Export the config object directly, or a factory function `(req) => ({ ... })` — both are supported:
 
 ```js
 // src/config/database.js
@@ -372,7 +397,7 @@ Built-in `util` static methods available on `req.util`:
 
 ## Activities (Background Threads)
 
-Activities run in a forked child process. The child process has access to `req` (including `req.db`, `req.util`, etc.) and the `payload` sent from the parent.
+Activities run in a forked child process. The child process has access to `req` (including `req.getConnectionORM()`, `req.getConnection()`, `req.util`, etc.) and the `payload` sent from the parent.
 
 ```js
 // src/activities/index.js
@@ -533,6 +558,7 @@ router.post('/transfer', async (req, res, next) => {
 
 ## What NOT to do
 
+- Do NOT use `req.db` (or anything on it — models, `Op`, `QueryTypes`, `<db_name>_connection`, `getConnection`) or `req.dbConnection()` — both are deprecated and removed in v3.0.0. Use `req.getConnectionORM()` for models and `req.getConnection()` for raw SQL (`.connection` for the raw Sequelize instance).
 - Do NOT read `req.body` or `req.query` directly — always use `req.data`.
 - Do NOT `res.json({ error: true, message: err.message })` inside a catch — call `next(err)` instead.
 - Do NOT import `express` inside route files and create a new `Router` in a way that bypasses the package's middleware — always export a standard Express router.

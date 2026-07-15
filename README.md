@@ -2,7 +2,23 @@
 
 A comprehensive Node.js API microservice framework built on Express, MySQL2, and Sequelize. This package provides a complete, production-ready setup to rapidly develop robust APIs — in JavaScript or TypeScript.
 
-## 🆕 What's new in v2.0.0
+## 🆕 What's new in v2.1.0
+
+- **Breaking: `mysql.db` and `mysql.dbConnection` removed from the standalone `@krvinay/express_api/mysql` export** — use `mysql.getConnectionORM('default')` instead (see [Database access](#-database-access)). `req.db` / `req.dbConnection` / `req.db.getConnection` on the per-request `req` object keep working (but see the deprecations below)
+- **`req.getConnectionORM()`** — new function that loads Sequelize models into an isolated object (`orm.<ModelName>`) instead of the shared `req.db`, so loading a model folder for an ad-hoc/tenant connection can't overwrite models loaded elsewhere. Works for configured databases too — `req.getConnectionORM('default')` — with its own independent model bindings (see [Database access](#-database-access))
+- **Ad-hoc database credentials** — `getConnection()` now accepts a credentials object to connect to a database that isn't declared in `src/config/database.js`, with automatic per-credential connection caching (see [Database access](#-database-access))
+- **`disableSequelizeORM` config flag** — set `disableSequelizeORM: true` in `appConfig.js` when you only need raw SQL: `req.db` is then not created at all (`undefined`). Database connections are still opened, and `req.getConnection()` / on-demand `req.getConnectionORM()` keep working regardless
+- **Deprecated: `req.db` and `req.dbConnection()`** — everything exposed on `req.db` (models, `sequelize`, `Op`, `QueryTypes`, `<db_name>_connection`, `getConnection`) and the `req.dbConnection()` helper are deprecated and **will be removed in v3.0.0**. Use `req.getConnectionORM(db_name?)` for models/`Op`/`QueryTypes` and `req.getConnection(db_name?).connection` for the raw Sequelize instance. Both still work throughout v2.x — a one-time `DeprecationWarning` is emitted on first use of each
+- **Fix:** Sequelize model loading now runs synchronously and fully completes during startup, closing a race window where requests could arrive before `req.db` was populated
+- **Fix:** `util.pluralize`/`util.singularize` — uninflected words (`sheep`, `fish`, `news`, `series`, …) were being inflected anyway, and some singularize rules leaked a literal `$2` into the result (`series` → `s$2eries`)
+- **Fix:** `util.get_ipv4_addr` now finds the IPv4 address in a comma-separated list (e.g. an `X-Forwarded-For` chain) — previously only the first comma was handled — and non-numeric segments (`a.b.c.d`) are no longer accepted as IPv4
+- **Fix:** `util.generate_password` — a charset typo duplicated `a` and made `z` unreachable in alphanumeric passwords
+- **Fix:** `util.underscore` no longer throws on strings without an uppercase letter; `util.format`/`req.formatMessage` no longer drop falsy placeholder values (`0`, `false`)
+- **Fix:** `res.json(null)` (or any JSON scalar) no longer crashes the auto-format response pipeline — scalars are wrapped as `data`
+- **Fix:** thread calls without a callback no longer crash the parent process when the child responds; error-handler redirects URL-encode the error message; nested `req.writeLog` paths (`'payments/refunds'`) now work on Windows too
+
+<details>
+<summary>What's new in v2.0.0</summary>
 
 - **First-class TypeScript support** — every application file can be `.js` or `.ts`; the installer scaffolds TypeScript projects and full typings ship with the package (see [TypeScript Support](#-typescript-support))
 - **`npx express-api init`** — interactive scaffolding CLI (source dir, language, Express version) that scaffolds the project, records the dependencies at your chosen versions in `package.json`, and installs them — nothing runs automatically on `npm install`
@@ -11,6 +27,8 @@ A comprehensive Node.js API microservice framework built on Express, MySQL2, and
 - **Express 4 and 5 compatible** — the accepted `express` range is `^4.21.2 || ^5.0.0`
 - **Async route errors are caught** — a rejected `async` handler is forwarded to the framework's error handler and returns the standard error envelope, on Express 4 too (which natively ignores handler promises). `try/catch + next(err)` still works and is still recommended for custom handling
 - **Breaking:** the deprecated `util`, `threads`, and `mysql` properties on the main export were removed — see [Migrating to v2](#-migrating-to-v2)
+
+</details>
 
 ## 🚚 Migrating to v2
 
@@ -34,6 +52,24 @@ mysql.getConnection();
 ```
 
 Everything else is backward compatible: `server.use(require("@krvinay/express_api"))`, the `req` API, response envelope, configs, and scaffolded project layout are unchanged.
+
+## 🚚 Migrating to v2.1
+
+Only the standalone `@krvinay/express_api/mysql` export changed — `.db` and `.dbConnection` were removed from it. Replace the old model-loading pattern with `getConnectionORM`:
+
+```js
+// ❌ v2.0 (removed, standalone mysql export only)
+const models = mysql.db;
+models.connection = models.getConnection();
+module.exports = models;
+
+// ✅ v2.1
+module.exports = mysql.getConnectionORM('default');
+```
+
+`req.db`, `req.dbConnection()`, and `req.db.getConnection()` on the per-request `req` object keep working unchanged in v2.1 — no immediate changes needed there. Note that `req.db` and `req.dbConnection()` are now deprecated (removal planned for v3.0.0), so prefer `req.getConnectionORM()` and `req.getConnection().connection` in new code.
+
+Everything else is unchanged: `req.db.<ModelName>`, `req.getConnection(db_name)`, route/model/config conventions, and the scaffolded project layout all continue to work as before.
 
 ## ✨ Features
 
@@ -306,7 +342,7 @@ Once installed and configured, you can start building your API by:
 | `@krvinay/express_api` | The framework middleware to mount with `server.use(...)` |
 | `@krvinay/express_api/util` | Static utility helpers (`pluralize`, `md5`, `uuid`, `generate_password`, date helpers, …) |
 | `@krvinay/express_api/threads` | `threads(activity, execFunction, payload, headers, callback, timeout?)` — run an activity in a child process |
-| `@krvinay/express_api/mysql` | Standalone database access (`getConnection()`, `dbConnection()`, `db`) outside a request context |
+| `@krvinay/express_api/mysql` | Standalone database access (`getConnection()`, `getConnectionORM()`) outside a request context |
 
 ```js
 // JavaScript
@@ -321,6 +357,54 @@ import util from "@krvinay/express_api/util";
 import threads from "@krvinay/express_api/threads";
 import mysql from "@krvinay/express_api/mysql";
 ```
+
+### 🗄️ Database access
+
+By default, every database in `src/config/database.js` is connected, and (when `bindDatabase` is `true` and `disableSequelizeORM` is not set) `req.db` is mapped exactly as in v2.0.0: the Sequelize models of every configured database merged together (`req.db.<ModelName>`), plus `sequelize`, `Op`, `QueryTypes`, one `<db_name>_connection` per database, and the `getConnection` alias.
+
+> [!WARNING]
+> **`req.db` and `req.dbConnection()` are deprecated and will be removed in v3.0.0.** Everything has a direct replacement: `req.getConnectionORM(db_name?)` returns the same models plus `sequelize`/`Op`/`QueryTypes`/`connection` as an isolated object, and `req.getConnection(db_name?).connection` is the raw Sequelize instance. Both keep working for the whole v2.x line; the first use of each emits a one-time `DeprecationWarning`.
+
+Set `disableSequelizeORM: true` in `appConfig.js` if you just need raw SQL — `req.db` is then not created at all (`req.db` is `undefined`). Database connections are still opened, and `req.getConnection()` and on-demand `req.getConnectionORM()` calls keep working regardless:
+
+```js
+req.config = {
+    disableSequelizeORM: true, // req.db is not created; getConnection/getConnectionORM still work
+};
+```
+
+`req.getConnection(db_name?)` returns a `MySqlUtil` wrapper for raw SQL. It accepts either a configured `db_name`, or a credentials object to connect to a database outside `src/config/database.js`; ad-hoc connections are cached per unique credential set, so repeated calls with the same credentials reuse one connection instead of opening a new pool each time. The raw Sequelize instance is always available via `.connection`:
+
+```js
+const conn = req.getConnection();                                            // default db
+const conn = req.getConnection('analytics');                                 // named db from database.js
+const conn = req.getConnection({ host, username, password, database });      // ad-hoc credentials
+const rawSequelize = conn.connection;                                        // raw Sequelize instance
+```
+
+`req.dbConnection(db_name?)` returns the raw Sequelize instance directly for a configured `db_name` — **deprecated, removed in v3.0.0** (as is its `req.db.getConnection` alias). Use `req.getConnection(db_name?).connection` instead, which also supports ad-hoc credentials:
+
+```js
+const rawSequelize = req.getConnection().connection;            // default db (preferred)
+const rawSequelize = req.getConnection('analytics').connection; // named db from database.js
+
+// deprecated equivalents, still working in v2.x:
+const rawSequelize = req.dbConnection();            // default db
+const rawSequelize = req.dbConnection('analytics'); // named db from database.js
+```
+
+`req.getConnectionORM(db_name?)` loads Sequelize models into their **own isolated object** — accessible as `orm.<ModelName>` — instead of the shared `req.db`. Pass a configured `db_name` to reuse its connection with independent model bindings, or ad-hoc credentials with a **required** `models` field naming the folder to load:
+
+```js
+const orm = req.getConnectionORM('default');                                                       // isolated copy, own connection
+const tenantOrm = req.getConnectionORM({ host, username, password, database, models: 'default' });  // ad-hoc, `models` required
+const user = await orm.User.findOne({ where: { id: req.data.id } });
+```
+
+Results are cached per target, so repeated calls with the same `db_name`, or the same credentials + `models`, return the same object. Throws if a credentials object omits `models`. Use this instead of loading models onto ad-hoc connections through the shared `req.db` — since `req.db` is one object shared by every request, two connections loading a model of the same name would otherwise overwrite each other.
+
+> [!NOTE]
+> The standalone `@krvinay/express_api/mysql` export (used outside a request context) exposes exactly two functions — `getConnection()` and `getConnectionORM()` — and nothing else; it has no `.db` or `.dbConnection`. Both accept a configured `db_name` or ad-hoc credentials, both give you the raw Sequelize instance via `.connection`, and models loaded through `getConnectionORM()` are isolated per target. Use `mysql.getConnectionORM('default')` where you previously used `mysql.db`.
 
 ## 🤖 Claude AI Agent
 

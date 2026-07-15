@@ -1,3 +1,85 @@
+# @krvinay/express_api v2.1.0
+
+Adds `req.getConnectionORM()` for isolated Sequelize model loading, ad-hoc database credentials for `getConnection()`, a `disableSequelizeORM` opt-out, and a batch of correctness fixes across the response pipeline and utilities. One breaking change, scoped to the standalone `@krvinay/express_api/mysql` export.
+
+## 💥 Breaking changes
+
+- **The standalone `@krvinay/express_api/mysql` export now exposes exactly two functions: `getConnection()` and `getConnectionORM()`.** `mysql.db` and `mysql.dbConnection` (and the previously leaked internals like `config`/`writeLog`) are gone. Both functions accept a configured `db_name` or an ad-hoc credentials object, the raw Sequelize instance is available on either result as `.connection`, and models loaded via `getConnectionORM()` are isolated per target. Use `mysql.getConnectionORM('default')` instead of `mysql.db` — same model access (`orm.User`), returned directly instead of assembled by hand:
+  ```js
+  // ❌ removed
+  const models = mysql.db;
+  models.connection = models.getConnection();
+  module.exports = models;
+  // ✅ v2.1.0
+  module.exports = mysql.getConnectionORM('default');
+  ```
+- **`req.dbConnection()` / `req.db.getConnection()` on the per-request `req` object keep working** — still the raw-Sequelize accessor, `db_name` only (no ad-hoc credentials). Only the standalone `mysql` export lost `.db`/`.dbConnection`; `req.db` and `req.dbConnection()` built by the framework middleware keep working throughout v2.x (but are now deprecated — see Deprecations below).
+
+## ✨ New
+
+### `disableSequelizeORM` config flag
+- With `bindDatabase: true`, `req.db` is mapped exactly as in v2.0.0 (`sequelize`, `Op`, `QueryTypes`, `<db_name>_connection` per database, every loaded model, and the `getConnection` alias). Set `disableSequelizeORM: true` in `appConfig.js` if you just need raw SQL — **`req.db` is then not created at all** (`req.db` is `undefined`). Database connections are still opened, and `req.getConnection()` and on-demand `req.getConnectionORM()` calls keep working regardless of this flag:
+  ```js
+  req.config = {
+      disableSequelizeORM: true, // req.db is not created; getConnection/getConnectionORM still work
+  };
+  ```
+
+### Ad-hoc database credentials
+- `getConnection()` now accepts a credentials object instead of a configured `db_name`, so you can connect to a database that isn't declared in `src/config/database.js`:
+  ```js
+  const conn = req.getConnection({ host, username, password, database });
+  ```
+- Same field shape as an entry in `database.js` (`host`, `username`, `password`, `database`, `token`, `pool`, `timezone`, `logging`, …). Connections are cached and reused per unique credential set, so repeated calls with the same credentials don't open a new connection pool each time.
+
+### `getConnectionORM()`
+- New function that loads Sequelize models into their **own isolated object** — `orm.<ModelName>` — instead of the shared `req.db`. Pass a configured `db_name` to reuse its connection with independent model bindings, or ad-hoc credentials with a **required** `models` field naming the folder to load:
+  ```js
+  const orm = req.getConnectionORM('default');
+  const tenantOrm = req.getConnectionORM({ host, username, password, database, models: 'default' });
+  ```
+- Results are cached per target (same `db_name`, or same credentials + `models` folder), so repeated calls reuse the same object. Throws if a credentials object omits `models`. Prefer this over loading models onto ad-hoc connections through the shared `req.db` — two connections loading a model of the same name into `req.db` would otherwise overwrite each other.
+
+## ⚠️ Deprecations
+
+- **`req.db` — everything it exposes is deprecated and will be removed in v3.0.0.** That covers the merged models (`req.db.<ModelName>`), `req.db.sequelize`, `req.db.Op`, `req.db.QueryTypes`, `req.db.<db_name>_connection`, and `req.db.getConnection`.
+- **`req.dbConnection()` is deprecated and will be removed in v3.0.0.** Use `req.getConnection(db_name?).connection` instead — same raw Sequelize instance, and it also supports ad-hoc credentials.
+
+  Replacements, available today:
+  ```js
+  // models + sequelize/Op/QueryTypes (isolated per target, cached)
+  const orm = req.getConnectionORM();            // or ('db_name') / ({ ...credentials, models })
+  const user = await orm.User.findOne({ where: { id } });
+
+  // raw Sequelize instance
+  const conn = req.getConnection().connection;   // or req.getConnectionORM().connection
+
+  // raw SQL wrapper
+  const sql = req.getConnection();               // or ('db_name') / ({ ...credentials })
+  ```
+  Both keep working (and `req.db` keeps its exact v2.0.0 shape) for the whole v2.x line — a one-time `DeprecationWarning` is emitted on the first use of each, and the TypeScript declarations flag them as `@deprecated`.
+
+## 🔧 Fixes & hardening
+
+- Sequelize model loading ran as a fire-and-forget async call during startup, so incoming requests could race ahead of `req.db` being fully populated. Model loading is now fully synchronous and completes before the server can accept traffic.
+- **Response pipeline:** `res.json(null)` — or any JSON scalar (`123`, `true`) — crashed the auto-format handler (`Cannot convert undefined or null to object`) and turned the request into a 500. Scalars are now wrapped as `data` in the standard envelope.
+- **`util.pluralize` / `util.singularize`:** the uninflected-word regexes were built with literal `/` delimiters inside the pattern, so they never matched — `pluralize('sheep')` returned `'sheeps'`, `'fish'` → `'fishes'`. Additionally, singularize rules that reference a second capture group leaked a literal `$2` into the output (`singularize('movies')` → `'m$2ovie'`). Both fixed; `pluralize` also returns the input word unchanged (instead of `undefined`) when no rule matches.
+- **`util.get_ipv4_addr`:** only the first comma in a comma-separated IP list was normalized, so a typical `X-Forwarded-For` chain (`2001:db8::1, 10.0.0.1`) returned `''` instead of `10.0.0.1`. Octets are also validated numerically now — `a.b.c.d` no longer passes as an IPv4 address (same validation applied to `req.getEnv('remote-addr')`).
+- **`util.generate_password`:** a charset typo (`…jklmanop…`) duplicated `a` and shifted the alphabet, so `z` could never appear in `AaN`/default passwords and `a` was twice as likely. Charset corrected.
+- **`util.underscore`:** threw `TypeError` on input without any uppercase letter; now returns the lowercased word.
+- **`util.format` / `req.formatMessage`:** falsy placeholder values (`0`, `false`) were rendered as empty strings; now rendered literally.
+- **Threads:** calling `threads(...)` without a callback crashed the parent process when the child responded or timed out; the callback is now optional (fire-and-forget).
+- **Error handler:** the `forceRedirect` redirect now URL-encodes the error message, so messages containing `&`, `#`, or spaces no longer produce a malformed redirect URL.
+- **`req.writeLog`:** nested log paths (`req.writeLog('payments/refunds', …)`) now create the intermediate directories correctly on Windows as well (path handling was POSIX-only).
+- **Typings:** `util.add_minutes` is correctly typed as returning `string`; `date_diff`'s documented default unit corrected to `'D'` (days); removed a `getConnectionORM` declaration from the `req.db` type that does not exist at runtime (use `req.getConnectionORM()`).
+
+## 📦 Upgrading from v2.0.0
+
+1. If you use the standalone `mysql.db` pattern (`const models = mysql.db; ...`), replace it with `mysql.getConnectionORM('default')`.
+2. Everything else keeps working: `req.db.<ModelName>`, `req.getConnection(db_name)`, `req.dbConnection(db_name)`, and route/model/config conventions all behave as before. Note that `req.db` and `req.dbConnection()` are now deprecated (removed in v3.0.0) — migrate to `req.getConnectionORM()` / `req.getConnection().connection` at your own pace during v2.x.
+
+---
+
 # @krvinay/express_api v2.0.0
 
 A major release: full TypeScript support, a guided `init` CLI that owns your dependency versions, Express 4 & 5 compatibility, and a hardened runtime.

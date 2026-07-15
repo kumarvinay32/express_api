@@ -28,8 +28,11 @@ export default (req: Request) => {
         // Attach common utility helpers to \`req.util\`
         bindUtil: true,
 
-        // Attach database helpers: req.getConnection(), req.dbConnection()
+        // Attach database helpers: req.getConnection(), req.getConnectionORM() (and the deprecated req.db / req.dbConnection() — removed in v3)
         bindDatabase: true,
+
+        // true: req.db is not created at all; req.getConnection()/req.getConnectionORM() still work
+        disableSequelizeORM: false,
 
         // Disable console.log / console.info output globally when set to true
         disableConsoleLog: false,
@@ -168,6 +171,7 @@ export default databases;
 `;
 
 const en = `export default {
+    notFoundMessage: \`API "?" not found.\`,
     MYSQL_ERROR: \`We are facing some technical difficulties, Please try later.\`,
     UNAUTHORIZED: \`Unauthorized access.\`,
     APP_WORKING: \`Working...\`,
@@ -175,6 +179,7 @@ const en = `export default {
 `;
 
 const hi = `export default {
+    notFoundMessage: \`ए पी आई "?" नहीं मिला।\`,
     MYSQL_ERROR: \`हमें कुछ तकनीकी कठिनाइयों का सामना करना पड़ रहा है, कृपया बाद में प्रयास करें।\`,
     UNAUTHORIZED: \`अनाधिकृत उपयोग।\`,
     APP_WORKING: \`काम कर रहा है...\`,
@@ -289,14 +294,16 @@ const models = `import mysql from "@krvinay/express_api/mysql";
  */
 export default mysql.getConnection();
 
+// Or connect with ad-hoc credentials instead of a configured db name
+// (same shape as src/config/database.js; connection is cached per credentials):
+// export default mysql.getConnection({ host, username, password, database });
+
 /**
- * Return Sequelize connection for default database configuration.
+ * Return Sequelize models for default database configuration.
  * This will allow you to execute raw sqls as well as Sequelize ORM.
  * for detailed document see: https://sequelize.org
  */
-// const models = mysql.db;
-// models.connection = models.getConnection();
-// export default models;
+// export default mysql.getConnectionORM('default');
 `;
 
 const server = `import 'dotenv/config';

@@ -35,8 +35,11 @@ module.exports = (req) => {
         // Attach common utility helpers to \`req.util\`
         bindUtil: true,
 
-        // Attach database helpers: req.getConnection(), req.dbConnection()
+        // Attach database helpers: req.getConnection(), req.getConnectionORM() (and the deprecated req.db / req.dbConnection() — removed in v3)
         bindDatabase: true,
+
+        // true: req.db is not created at all; req.getConnection()/req.getConnectionORM() still work
+        disableSequelizeORM: false,
 
 
         /**
@@ -234,12 +237,14 @@ function mysql_log(sql, benchmark) {
 }`;
 
 const hi = `module.exports = {
+    notFoundMessage: \`ए पी आई "?" नहीं मिला।\`,
     MYSQL_ERROR: \`हमें कुछ तकनीकी कठिनाइयों का सामना करना पड़ रहा है, कृपया बाद में प्रयास करें।\`,
     UNAUTHORIZED: \`अनाधिकृत उपयोग।\`,
     APP_WORKING: \`काम कर रहा है...\`,
 }`;
 
 const en = `module.exports = {
+    notFoundMessage: \`API "?" not found.\`,
     MYSQL_ERROR: \`We are facing some technical difficulties, Please try later.\`,
     UNAUTHORIZED: \`Unauthorized access.\`,
     APP_WORKING: \`Working...\`,
@@ -337,7 +342,7 @@ const activities = `class Activities {
 
 module.exports = Activities;`;
 
-const models = `const  mysql  = require("@krvinay/express_api/mysql");
+const models = `const mysql = require("@krvinay/express_api/mysql");
 /**
  * Return Mysql connection for default databasee configuration present in appConfig.js.
  * This will allow you to execute raw sqls.
@@ -345,14 +350,16 @@ const models = `const  mysql  = require("@krvinay/express_api/mysql");
  */
 module.exports = mysql.getConnection();
 
+// Or connect with ad-hoc credentials instead of a configured db name
+// (same shape as src/config/database.js; connection is cached per credentials):
+// module.exports = mysql.getConnection({ host, username, password, database });
+
 /**
- * Return Sequelize connection for default databasee configuration present in appConfig.js.
+ * Return Sequelize models for default database configuration present in appConfig.js.
  * This will allow you to execute raw sqls as well as Sequelize ORM.
  * for detailed document see: https://sequelize.org
  */
-// const models = mysql.db;
-// models.connection = models.getConnection();
-// module.exports = models;`;
+// module.exports = mysql.getConnectionORM('default');`;
 
 const server = `require("dotenv").config({ quiet: true });
 const server = require('express')();
