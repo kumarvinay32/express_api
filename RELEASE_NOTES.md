@@ -1,3 +1,27 @@
+# @krvinay/express_api v2.2.0
+
+Adds `req.closeConnection()` (and standalone `mysql.closeConnection()`) to close and evict cached ad-hoc database connections, and removes the `postinstall` script for clean, silent package installations.
+
+## ✨ New
+
+### `closeConnection()` for ad-hoc database connections
+- Closes the underlying Sequelize connection pool and removes the cached connection instance from memory:
+  ```js
+  const credentials = { host, username, password, database };
+  const conn = req.getConnection(credentials);
+  // ... run queries ...
+
+  // Close connection pool and evict from cache
+  await req.closeConnection(credentials);
+  ```
+- Accepts the same ad-hoc credentials object passed to `req.getConnection()` or `req.getConnectionORM()`. Calling `await req.closeConnection(credentials)` closes the connection pool asynchronously and deletes the cache entry, preventing connection pool leaks and releasing database resources in dynamic multi-tenant or ad-hoc workflows.
+
+## 🔧 Improvements & cleanup
+
+- **Removed `postinstall` script:** Removed the `postinstall` lifecycle hook from `package.json`. Installing `@krvinay/express_api` now runs zero lifecycle scripts, ensuring clean, warning-free installs across development environments and automated CI/CD pipelines.
+
+---
+
 # @krvinay/express_api v2.1.0
 
 Adds `req.getConnectionORM()` for isolated Sequelize model loading, ad-hoc database credentials for `getConnection()`, a `disableSequelizeORM` opt-out, and a batch of correctness fixes across the response pipeline and utilities. One breaking change, scoped to the standalone `@krvinay/express_api/mysql` export.

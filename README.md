@@ -2,7 +2,13 @@
 
 A comprehensive Node.js API microservice framework built on Express, MySQL2, and Sequelize. This package provides a complete, production-ready setup to rapidly develop robust APIs — in JavaScript or TypeScript.
 
-## 🆕 What's new in v2.1.0
+## 🆕 What's new in v2.2.0
+
+- **`closeConnection()` for ad-hoc connections** — asynchronously close and evict cached ad-hoc database connection pools by passing the credentials object, available via `req.closeConnection()` and the standalone `mysql.closeConnection()` export, releasing idle connections and memory (see [Database access](#-database-access))
+- **Clean installations** — removed the `postinstall` script from `package.json` for completely silent, script-free installs during `npm install` and CI/CD runs
+
+<details>
+<summary>What's new in v2.1.0</summary>
 
 - **Breaking: `mysql.db` and `mysql.dbConnection` removed from the standalone `@krvinay/express_api/mysql` export** — use `mysql.getConnectionORM('default')` instead (see [Database access](#-database-access)). `req.db` / `req.dbConnection` / `req.db.getConnection` on the per-request `req` object keep working (but see the deprecations below)
 - **`req.getConnectionORM()`** — new function that loads Sequelize models into an isolated object (`orm.<ModelName>`) instead of the shared `req.db`, so loading a model folder for an ad-hoc/tenant connection can't overwrite models loaded elsewhere. Works for configured databases too — `req.getConnectionORM('default')` — with its own independent model bindings (see [Database access](#-database-access))
@@ -16,6 +22,8 @@ A comprehensive Node.js API microservice framework built on Express, MySQL2, and
 - **Fix:** `util.underscore` no longer throws on strings without an uppercase letter; `util.format`/`req.formatMessage` no longer drop falsy placeholder values (`0`, `false`)
 - **Fix:** `res.json(null)` (or any JSON scalar) no longer crashes the auto-format response pipeline — scalars are wrapped as `data`
 - **Fix:** thread calls without a callback no longer crash the parent process when the child responds; error-handler redirects URL-encode the error message; nested `req.writeLog` paths (`'payments/refunds'`) now work on Windows too
+
+</details>
 
 <details>
 <summary>What's new in v2.0.0</summary>
@@ -342,7 +350,7 @@ Once installed and configured, you can start building your API by:
 | `@krvinay/express_api` | The framework middleware to mount with `server.use(...)` |
 | `@krvinay/express_api/util` | Static utility helpers (`pluralize`, `md5`, `uuid`, `generate_password`, date helpers, …) |
 | `@krvinay/express_api/threads` | `threads(activity, execFunction, payload, headers, callback, timeout?)` — run an activity in a child process |
-| `@krvinay/express_api/mysql` | Standalone database access (`getConnection()`, `getConnectionORM()`) outside a request context |
+| `@krvinay/express_api/mysql` | Standalone database access (`getConnection()`, `getConnectionORM()`, `closeConnection()`) outside a request context |
 
 ```js
 // JavaScript
@@ -403,8 +411,18 @@ const user = await orm.User.findOne({ where: { id: req.data.id } });
 
 Results are cached per target, so repeated calls with the same `db_name`, or the same credentials + `models`, return the same object. Throws if a credentials object omits `models`. Use this instead of loading models onto ad-hoc connections through the shared `req.db` — since `req.db` is one object shared by every request, two connections loading a model of the same name would otherwise overwrite each other.
 
+`await req.closeConnection(credentials)` (or `await mysql.closeConnection(credentials)`) closes the cached ad-hoc Sequelize connection pool and removes it from the internal connection cache. Use this to release database connections when finished with dynamic tenant or temporary credentials:
+
+```js
+const credentials = { host, username, password, database };
+const conn = req.getConnection(credentials);
+// ... run queries ...
+
+await req.closeConnection(credentials); // closes the pool and evicts from cache
+```
+
 > [!NOTE]
-> The standalone `@krvinay/express_api/mysql` export (used outside a request context) exposes exactly two functions — `getConnection()` and `getConnectionORM()` — and nothing else; it has no `.db` or `.dbConnection`. Both accept a configured `db_name` or ad-hoc credentials, both give you the raw Sequelize instance via `.connection`, and models loaded through `getConnectionORM()` are isolated per target. Use `mysql.getConnectionORM('default')` where you previously used `mysql.db`.
+> The standalone `@krvinay/express_api/mysql` export (used outside a request context) exposes `getConnection()`, `getConnectionORM()`, and `closeConnection()` — and nothing else; it has no `.db` or `.dbConnection`. `getConnection` and `getConnectionORM` accept a configured `db_name` or ad-hoc credentials, both give you the raw Sequelize instance via `.connection`, and models loaded through `getConnectionORM()` are isolated per target. `closeConnection(credentials)` closes and evicts cached ad-hoc connections. Use `mysql.getConnectionORM('default')` where you previously used `mysql.db`.
 
 ## 🤖 Claude AI Agent
 
@@ -412,7 +430,7 @@ Every project scaffolded by this package includes `CLAUDE.md` at its root — a 
 
 ### What it covers
 
-- Full `req` object API reference (`req.data`, `req.db`, `req.getConnection`, `req.util`, `req.getEnv`, `req.writeLog`, `req.formatMessage`, …)
+- Full `req` object API reference (`req.data`, `req.db`, `req.getConnection`, `req.closeConnection`, `req.util`, `req.getEnv`, `req.writeLog`, `req.formatMessage`, …)
 - Standard response envelope format and all shape rules
 - Route writing conventions in JS and TS
 - Raw SQL via `MySqlUtil` and Sequelize ORM patterns
